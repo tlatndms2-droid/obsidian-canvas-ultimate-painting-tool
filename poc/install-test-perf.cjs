@@ -1,0 +1,29 @@
+const fs=require('fs'),path=require('path'),crypto=require('crypto');const{chromium}=require('playwright');
+const context=JSON.parse(fs.readFileSync('poc/evidence/brush-perf-context.json','utf8'));const id='canvas-drawing-integration-poc';
+(async()=>{const b=await chromium.connectOverCDP('http://127.0.0.1:9287');const p=b.contexts()[0].pages().find(p=>p.url().startsWith('app://'));const errors=[];p.on('pageerror',e=>errors.push(e.message));
+await p.evaluate(id=>{const q=app.plugins.plugins[id];const leaf=app.workspace.getLeavesOfType('canvas').find(l=>l.view.file?.path===q.filePath);if(!leaf)throw Error('Canvas leaf missing');app.workspace.setActiveLeaf(leaf,{focus:true})},id);
+await p.waitForFunction(id=>!!app.plugins.plugins[id]?.canvas,id);
+const state=await p.evaluate(async id=>{const q=app.plugins.plugins[id];if(q.active)throw Error('Drawing in progress');await q.save();const keys=['color','size','opacity','mixing','mixStrength','mixScope','pressureEnabled','minSize','spacing','stabilization','roundness','angle','hardness','scatter','flow','activeLayer','tipId'];return{file:q.filePath,count:q.strokes.length,settings:Object.fromEntries(keys.map(k=>[k,q[k]])),snapshot:q.snapshot(),penProof:q.penProof}},id);
+// Refresh backup after flushing the current drawing, before installing or testing.
+for(const file of[state.file,state.file+'.drawing-poc.json'])if(fs.existsSync(path.join(context.root,file)))fs.copyFileSync(path.join(context.root,file),path.join(context.backup,path.basename(file)));
+const fixture='Brush-Performance-Check.canvas';state.fixture=fixture;fs.writeFileSync('poc/evidence/brush-perf-user-state.json',JSON.stringify(state));
+const baseline=await p.evaluate(id=>{const q=app.plugins.plugins[id],c=Object.create(q);c.raster=document.createElement('canvas');c.layerSurfaces=new Map();const t=performance.now();c.render();return{ms:performance.now()-t,png:c.raster.toDataURL(),width:c.raster.width,height:c.raster.height}},id);
+fs.writeFileSync('poc/evidence/brush-perf-before.png',Buffer.from(baseline.png.split(',')[1],'base64'));
+await p.evaluate(async id=>{await app.plugins.disablePlugin(id)},id);
+const hashes={};for(const name of['main.js','styles.css','manifest.json']){const source='poc/perf-plugin/'+name,dest=path.join(context.plugin,name);fs.copyFileSync(source,dest);const hash=f=>crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');if(hash(source)!==hash(dest))throw Error('Install hash mismatch');hashes[name]=hash(dest)}
+await p.evaluate(async id=>{await app.plugins.loadManifests();await app.plugins.enablePlugin(id)},id);
+await p.waitForFunction(({id,count})=>{const q=app.plugins.plugins[id];return q?.strokes.length===count&&q.tipImages.size===66},{id,count:state.count},{timeout:30000});
+const after=await p.evaluate(({id,settings})=>{const q=app.plugins.plugins[id];Object.assign(q,settings);const times=[];for(let n=0;n<4;n++){let t=performance.now();q.render();times.push(performance.now()-t)}return{times,png:q.raster.toDataURL(),snapshot:q.snapshot(),penProof:q.penProof,version:q.manifest.version}}, {id,settings:state.settings});
+fs.writeFileSync('poc/evidence/brush-perf-after.png',Buffer.from(after.png.split(',')[1],'base64'));
+const{PNG}=require('pngjs');const a=PNG.sync.read(fs.readFileSync('poc/evidence/brush-perf-before.png')),z=PNG.sync.read(fs.readFileSync('poc/evidence/brush-perf-after.png'));let differentChannels=0;for(let i=0;i<a.data.length;i++)if(a.data[i]!==z.data[i])differentChannels++;
+if(JSON.stringify(state.snapshot)!==JSON.stringify(after.snapshot))throw Error('User drawing changed');
+await p.evaluate(async({file,fixture,id})=>{await app.vault.adapter.write(fixture,await app.vault.adapter.read(file));await app.vault.adapter.write(fixture+'.drawing-poc.json',await app.vault.adapter.read(file+'.drawing-poc.json'));await app.workspace.getLeaf(false).openFile(app.vault.getAbstractFileByPath(fixture)||await new Promise(resolve=>setTimeout(()=>resolve(app.vault.getAbstractFileByPath(fixture)),500)))},{file:state.file,fixture,id});
+await p.waitForFunction(({id,file,count})=>{const q=app.plugins.plugins[id];return q.filePath===file&&q.strokes.length===count},{id,file:fixture,count:state.count},{timeout:30000});
+await p.evaluate(({id,settings})=>{const q=app.plugins.plugins[id];Object.assign(q,settings);q.tipSelect.value=q.tipId;q.sizeInput.value=q.size;q.colorInput.value=q.color;q.options.open=false;window.__perfRenders=[];const render=q.render;q.render=function(){const t=performance.now();const r=render.call(this);window.__perfRenders.push(performance.now()-t);return r}}, {id,settings:state.settings});
+await p.locator('.canvas-drawing-poc-controls button').filter({hasText:'그리기'}).click();
+const rect=await p.locator('.canvas-drawing-poc-controls').evaluate(e=>{const r=e.parentElement.getBoundingClientRect();return{x:r.x,y:r.y,w:r.width,h:r.height}});
+await p.mouse.move(rect.x+rect.w*.25,rect.y+rect.h*.65);await p.mouse.down();await p.mouse.move(rect.x+rect.w*.65,rect.y+rect.h*.72,{steps:30});await p.mouse.up();await p.waitForTimeout(700);
+const ui=await p.evaluate(async id=>{const q=app.plugins.plugins[id];await q.save();const t=window.__perfRenders.slice().sort((a,b)=>a-b);return{count:q.strokes.length,tip:q.strokes.at(-1).style.tipId,points:q.strokes.at(-1).length,renderMedian:t[Math.floor(t.length/2)],renderP95:t[Math.floor(t.length*.95)],renderMax:t.at(-1),renders:t.length}},id);
+await p.screenshot({path:'poc/evidence/brush-perf-ui.png'});
+const result={beforeMs:baseline.ms,afterMs:after.times,differentChannels,version:after.version,userDrawingUnchanged:true,hashes,ui,errors};fs.writeFileSync('poc/evidence/brush-perf-runtime.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result,null,2));await b.close();if(differentChannels||ui.count!==state.count+1||errors.length)process.exitCode=1;
+})().catch(e=>{console.error(e);process.exitCode=1});

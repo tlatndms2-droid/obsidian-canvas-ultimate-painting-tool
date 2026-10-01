@@ -1,0 +1,17 @@
+const fs=require('fs'),path=require('path'),crypto=require('crypto');
+const root='C:/Users/tlatn/AppData/Local/Temp/CanvasDrawingSandbox-20260927';
+const plugin=path.join(root,'.obsidian/plugins/canvas-drawing-integration-poc');
+const backup=path.resolve('poc/evidence/brush-perf-backup-'+Date.now());fs.mkdirSync(backup,{recursive:true});
+for(const name of fs.readdirSync(root).filter(n=>n.endsWith('.canvas')||n.endsWith('.drawing-poc.json')))fs.copyFileSync(path.join(root,name),path.join(backup,name));
+fs.cpSync(plugin,path.join(backup,'plugin'),{recursive:true});
+fs.copyFileSync(path.join(root,'.obsidian/workspace.json'),path.join(backup,'workspace.json'));
+const original=fs.readFileSync(path.join(plugin,'main.js'),'utf8');
+const marker='const clone = value => JSON.parse(JSON.stringify(value));';
+const at=original.indexOf(marker);if(at<0)throw Error('Missing lab source marker');
+const dir='poc/perf-plugin';fs.mkdirSync(dir,{recursive:true});
+fs.writeFileSync(dir+'/prefix.js',original.slice(0,at));
+fs.writeFileSync(dir+'/lab.js',original.slice(at));
+fs.copyFileSync(path.join(plugin,'styles.css'),dir+'/styles.css');
+const manifest=JSON.parse(fs.readFileSync(path.join(plugin,'manifest.json'),'utf8'));manifest.version='0.0.3';fs.writeFileSync(dir+'/manifest.json',JSON.stringify(manifest,null,2));
+fs.writeFileSync('poc/evidence/brush-perf-context.json',JSON.stringify({root,plugin,backup,originalHash:crypto.createHash('sha256').update(original).digest('hex')},null,2));
+console.log({backup,source:dir});

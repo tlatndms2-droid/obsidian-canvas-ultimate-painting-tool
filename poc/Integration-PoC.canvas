@@ -1,0 +1,8 @@
+{
+  "nodes": [
+    {"id":"note-card","type":"text","text":"Canvas drawing PoC card\nMove this card in Selection mode.","x":0,"y":0,"width":300,"height":180},
+    {"id":"test-image","type":"file","file":"Test image.svg","x":390,"y":20,"width":260,"height":180},
+    {"id":"test-group","type":"group","label":"Test group","x":-70,"y":-70,"width":790,"height":310}
+  ],
+  "edges": []
+}

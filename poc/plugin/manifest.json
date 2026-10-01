@@ -1,0 +1,9 @@
+{
+  "id": "canvas-drawing-integration-poc",
+  "name": "Canvas Drawing Integration PoC",
+  "version": "0.0.1",
+  "minAppVersion": "1.12.0",
+  "description": "Temporary isolated Canvas drawing feasibility test.",
+  "author": "Codex",
+  "isDesktopOnly": true
+}

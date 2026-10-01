@@ -1,0 +1,10 @@
+{
+  "title": "Large-PoC - CanvasDrawingSandbox-20260927 - Obsidian 1.13.7",
+  "eraserPrimitive": true,
+  "regionMaskPrimitive": true,
+  "EyeDropper": "function",
+  "secureContext": true,
+  "pressureProperty": true,
+  "tiltProperty": true,
+  "note": "Detached 12x12 canvas only. No vault writes. Primitive tests are not product UI verification. EyeDropper selection and physical pen not tested."
+}

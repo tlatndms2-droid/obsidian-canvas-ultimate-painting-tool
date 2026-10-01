@@ -1,0 +1,23 @@
+const{chromium}=require('playwright');const fs=require('fs');
+(async()=>{const b=await chromium.connectOverCDP('http://127.0.0.1:9287');const p=b.contexts()[0].pages().find(p=>p.url().startsWith('app://'));const errors=[];p.on('pageerror',e=>errors.push(e.message));
+await p.evaluate(async()=>{const name='Brush-Lab-'+Date.now()+'.canvas';const f=await app.vault.create(name,JSON.stringify({nodes:[{id:'guide',type:'text',x:-370,y:-230,width:430,height:150,text:'브러시 실험실\n노랑 위 파랑: 색 혼합 ON/OFF 비교\n아래: ABR에서 가져온 브러시로 직접 그린 선'}],edges:[]}));await app.workspace.getLeaf(false).openFile(f)});await p.waitForTimeout(800);
+const color=async value=>p.getByLabel('붓 색',{exact:true}).evaluate((e,v)=>{e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}))},value);
+const slider=async(name,value)=>p.getByLabel(name,{exact:true}).evaluate((e,v)=>{e.value=v;e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}))},String(value));
+const point=(x,y)=>p.evaluate(([x,y])=>{const q=app.plugins.plugins['canvas-drawing-integration-poc'],r=q.canvas.getBoundingClientRect(),s=r.width/q.canvas.offsetWidth;return[r.x+x*s,r.y+y*s]},[x,y]);
+const draw=async(a,z)=>{await p.locator('.drawing-lab-options summary').evaluate(e=>e.parentElement.open=false);await p.locator('.canvas-drawing-poc-controls button').filter({hasText:'그리기'}).click();await p.mouse.move(...await point(...a));await p.mouse.down();await p.mouse.move(...await point(...z),{steps:24});await p.mouse.up();await p.waitForTimeout(400);await p.locator('.drawing-lab-options summary').evaluate(e=>e.parentElement.open=true)};
+await slider('붓 크기',65);await color('#fcd200');await draw([-340,0],[80,0]);await slider('붓 크기',28);await color('#002185');await p.getByLabel('색 혼합 켜기',{exact:true}).check();await draw([-280,-45],[-280,55]);
+const mix=await p.evaluate(()=>{const q=app.plugins.plugins['canvas-drawing-integration-poc'];return{colors:q.strokes.at(-1).style.colors,points:q.strokes.at(-1).length}});
+await p.getByLabel('색 혼합 켜기',{exact:true}).uncheck();await p.getByLabel('현재 레이어',{exact:true}).selectOption('two');await draw([-150,-45],[-150,55]);await p.getByLabel('레이어 혼합',{exact:true}).selectOption('multiply');
+const layer=await p.evaluate(()=>app.plugins.plugins['canvas-drawing-integration-poc'].layers);
+await p.getByLabel('현재 레이어',{exact:true}).selectOption('one');await p.getByLabel('ABR 가져오기',{exact:true}).setInputFiles('poc/samples/myer-settlement-brushes.abr');await p.waitForFunction(()=>app.plugins.plugins['canvas-drawing-integration-poc'].lastImport?.count===148,{timeout:20000});
+await slider('붓 크기',55);await slider('브러시 간격',.9);await color('#75451f');await draw([-330,150],[30,150]);
+const imported=await p.evaluate(()=>{const q=app.plugins.plugins['canvas-drawing-integration-poc'];return{lastImport:q.lastImport,usedTip:q.strokes.at(-1).style.tipId,tips:q.tips.length}});
+await p.getByLabel('브러시 팁',{exact:true}).selectOption('');await slider('브러시 간격',.15);await slider('붓 크기',35);
+// Synthetic pressure checks the handling path, not physical hardware.
+await p.locator('.drawing-lab-options summary').evaluate(e=>e.parentElement.open=false);
+await p.evaluate(()=>{const q=app.plugins.plugins['canvas-drawing-integration-poc'],r=q.canvas.getBoundingClientRect(),s=r.width/q.canvas.offsetWidth;const send=(type,x,pressure)=>q.host.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerId:89,pointerType:'pen',button:0,buttons:type==='pointerup'?0:1,clientX:r.x+x*s,clientY:r.y+235*s,pressure,tiltX:20,tiltY:10}));send('pointerdown',-330,.1);for(let i=1;i<=20;i++)send('pointermove',-330+i*15,.1+i*.04);send('pointerup',-30,0)});await p.waitForTimeout(500);
+const pen=await p.evaluate(()=>{const q=app.plugins.plugins['canvas-drawing-integration-poc'];return{last:q.lastPen,pressures:q.strokes.at(-1).map(x=>x[2]),style:q.strokes.at(-1).style,strokeCount:q.strokes.length}});
+await p.screenshot({path:'poc/evidence/lab-brush.png'});
+const state=await p.evaluate(()=>{const q=app.plugins.plugins['canvas-drawing-integration-poc'];return{file:q.filePath,rendered:q.renderedStrokeCount,layers:q.layers}});
+const result={mix,layer,imported,pen,state,errors};fs.writeFileSync('poc/evidence/lab-brush.json',JSON.stringify(result,null,2));console.log(JSON.stringify({mixColors:[...new Set(mix.colors)],imported,pen:pen.last,state,errors},null,2));await b.close();if(errors.length)process.exitCode=1;
+})().catch(e=>{console.error(e);process.exitCode=1});

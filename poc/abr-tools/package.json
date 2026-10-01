@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "esbuild": "^0.28.2",
+    "fast-png": "^8.0.0",
+    "kaitai-struct": "^0.11.0",
+    "spectral.js": "^3.0.0"
+  }
+}

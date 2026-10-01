@@ -1,0 +1,213 @@
+{
+  "main": {
+    "id": "d6a6f2ca6763e0dc",
+    "type": "split",
+    "children": [
+      {
+        "id": "be931ad678bbe138",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "d953d9e61a4c3b76",
+            "type": "leaf",
+            "state": {
+              "type": "canvas",
+              "state": {
+                "file": "Large-PoC.canvas",
+                "viewState": {
+                  "x": 5531.258645279896,
+                  "y": 103.8943173956898,
+                  "zoom": -0.6666666666666667
+                }
+              },
+              "icon": "lucide-layout-dashboard",
+              "title": "Large-PoC"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "76e8a28f66580dad",
+    "type": "split",
+    "children": [
+      {
+        "id": "f59acd4dfbf9c05a",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "0a22dc2ff8217e11",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "검색"
+            }
+          },
+          {
+            "id": "25fda06daeae08ec",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "북마크"
+            }
+          },
+          {
+            "id": "f4000021c5c11344",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-folder-closed",
+              "title": "파일 탐색기"
+            }
+          }
+        ],
+        "currentTab": 2
+      }
+    ],
+    "direction": "horizontal",
+    "width": 744.5
+  },
+  "right": {
+    "id": "214447054f694d8e",
+    "type": "split",
+    "children": [
+      {
+        "id": "9eb44eb8fdaaa627",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "22711d2137a52790",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Clean-PoC.canvas",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Clean-PoC 의 백링크"
+            }
+          },
+          {
+            "id": "0ceb5f81ff3ce334",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Clean-PoC.canvas",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Clean-PoC 의 나가는 링크"
+            }
+          },
+          {
+            "id": "43450028ff4ecccd",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "태그"
+            }
+          },
+          {
+            "id": "6da5caf78f309600",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "모든 속성"
+            }
+          },
+          {
+            "id": "6ac594c8aa28e075",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Clean-PoC.canvas",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Clean-PoC 의 개요"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:빠른 전환기 열기": false,
+      "graph:그래프 뷰 열기": false,
+      "canvas:새 캔버스 만들기": false,
+      "daily-notes:오늘의 일일 노트 열기": false,
+      "templates:템플릿 삽입": false,
+      "command-palette:명령어 팔레트 열기": false,
+      "bases:새 베이스 생성하기": false
+    }
+  },
+  "active": "d953d9e61a4c3b76",
+  "lastOpenFiles": [
+    "Linked-PoC.canvas",
+    "Raster-PoC.canvas",
+    "Trash-PoC.canvas",
+    "Test image.svg",
+    "SystemTrash-PoC-20260927.canvas",
+    "Raster-PoC.canvas.drawing-poc.json",
+    "Large-PoC.canvas",
+    "SystemTrash-PoC-20260927.canvas.drawing-poc.json",
+    "Large-PoC.canvas.drawing-poc.json",
+    "Clean-PoC.canvas",
+    "Linked-PoC.canvas.drawing-poc.json",
+    "Linked-PoC.canvas.drawing-poc.json",
+    "Event-PoC.canvas",
+    "Event-PoC.canvas.drawing-poc.json",
+    "Trash-PoC.canvas.drawing-poc.json",
+    "Clean-PoC.canvas.drawing-poc.json",
+    "Integration-PoC.canvas",
+    "Integration-PoC.canvas.drawing-poc.json"
+  ]
+}

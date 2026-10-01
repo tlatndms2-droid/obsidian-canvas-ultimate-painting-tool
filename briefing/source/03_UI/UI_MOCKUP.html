@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>-</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+</head>
+<body>
+<h1 id="canvas-drawing-tool-bar-planning-dashboard">Canvas Drawing Tool
+Bar — Planning Dashboard</h1>
+<style>
+body{font-family:Inter,Arial,sans-serif;background:#151515;color:#e8e8ea;margin:0;padding:32px;line-height:1.6}
+.wrap{max-width:1180px;margin:auto}.hero,.card,.section{background:#1e1e21;border:1px solid #38383e;border-radius:12px;padding:20px;margin-bottom:14px}
+.badge{display:inline-block;background:#302d45;color:#c9c2ff;border:1px solid #554e7d;border-radius:999px;padding:4px 9px;font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.muted{color:#a0a0a8}.ok{color:#76d49c}.warn{color:#e6bd62}
+table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #3a3a40;text-align:left}th{color:#aaa}
+.pipe{padding:14px;background:#18181a;border-radius:8px;overflow:auto;white-space:nowrap}
+.canvas{position:relative;height:520px;background-color:#191919;background-image:radial-gradient(#444 1px,transparent 1px);background-size:20px 20px;border-radius:10px;overflow:hidden}
+.toolbar{position:absolute;left:14px;top:70px;width:48px;background:#26262a;border:1px solid #4b4b51;border-radius:9px;padding:5px}
+.tool{height:38px;text-align:center;padding-top:7px;margin:3px;border-radius:6px}.active{background:#7668e8}
+.brush{position:absolute;left:76px;top:70px;width:240px;background:#232327;border:1px solid #4b4b51;border-radius:9px;padding:12px}.preset{background:#2d2d32;padding:9px;margin:7px 0;border-radius:6px}.selected{outline:1px solid #7668e8}
+.layers{position:absolute;right:16px;top:70px;width:220px;background:#232327;border:1px solid #4b4b51;border-radius:9px;overflow:hidden}.layer{padding:10px;border-bottom:1px solid #39393e}.layer:first-child{background:#35313f}
+.node{position:absolute;background:#27272b;border:1px solid #555;border-radius:8px;padding:14px;width:180px}.n1{left:430px;top:140px}.n2{left:650px;top:350px}
+.check{color:#76d49c}.x{color:#df747c}h1{margin-top:4px}h2{margin-top:8px}
+@media(max-width:800px){.grid{grid-template-columns:1fr}}
+</style>
+<div class="wrap">
+
+<div class="hero">
+<span class="badge">PLANNING · P0 GATE BEFORE DEVELOPMENT</span>
+<h1>
+Canvas Drawing Tool Bar
+</h1>
+<p class="muted">
+Obsidian Canvas 자체를 그림판으로 확장하고, Clip Studio Paint에 가까운
+Drawing 경험을 제공하되 기존 Canvas 성능과 사용성을 희생하지 않는다.
+</p>
+</div>
+<div class="grid">
+<div class="card">
+<h2>
+Canvas = Drawing Surface
+</h2>
+<p class="muted">
+별도 Drawing Canvas/Area 없음. Card, Image, Group과 Drawing이 같은
+Canvas 공간에 공존.
+</p>
+</div>
+<div class="card">
+<h2>
+CSP-oriented UX
+</h2>
+<p class="muted">
+Brush, Layer, Selection, Transform, 필압, Stabilization을 실제 Drawing
+작업 수준으로 설계.
+</p>
+</div>
+<div class="card">
+<h2>
+P0 Performance
+</h2>
+<p class="muted">
+Pan/Zoom/Card 조작과 대형 Canvas 탐색 성능 보호.
+</p>
+</div>
+</div>
+<section>
+<h2>
+현재 진행 상태
+</h2>
+<p>
+<b class="ok">기획 진행 중</b> · Brush Preset Panel UI까지 확정
+</p>
+<p>
+<b class="warn">Canvas Integration PoC: 미검증</b>
+</p>
+<p>
+<b>NEXT:</b> CSP식 Brush Settings 상세 UI
+</p>
+<div class="pipe">
+Canvas Integration PoC → Drawing Engine → Input System → Layer System →
+Selection/Transform → Brush Engine → Brush Preset → 고급 Brush →
+Photoshop Brush Import → 성능 안정화
+</div>
+</section>
+<section>
+<h2>
+현재 확정 UI
+</h2>
+<div class="canvas">
+<div class="toolbar">
+<div class="tool">
+↖
+</div>
+<div class="tool active">
+✎
+</div>
+<div class="tool">
+◇
+</div>
+<div class="tool">
+□
+</div>
+<div class="tool">
+○
+</div>
+<div class="tool">
+→
+</div>
+<div class="tool">
+T
+</div>
+<div class="tool">
+●
+</div>
+<div class="tool">
+↶
+</div>
+<div class="tool">
+↷
+</div>
+</div>
+<div class="brush">
+<b>Brush Presets</b>
+<p class="muted">
+▼ Pen
+</p>
+<div class="preset selected">
+〰 G-Pen
+</div>
+<div class="preset">
+━ Mapping Pen
+</div>
+<p class="muted">
+▼ Pencil
+</p>
+<div class="preset">
+≋ Rough Pencil
+</div>
+<p class="muted">
+▼ Imported
+</p>
+<div class="preset">
+〰 Photoshop Brush
+</div>
+</div>
+<div class="node n1">
+<b>캐릭터 디자인</b><br><span class="muted">얼굴 · 의상 ·
+레퍼런스</span>
+</div>
+<div class="node n2">
+<b>환경 디자인</b><br><span class="muted">건축 · 공간 구성</span>
+</div>
+<div class="layers">
+<div class="layer">
+◉　▧　Layer 3　🔓
+</div>
+<div class="layer">
+◉　▧　Layer 2　🔓
+</div>
+<div class="layer">
+◉　▧　Layer 1　🔓
+</div>
+</div>
+</div>
+</section>
+<section>
+<h2>
+확정 기능
+</h2>
+<table>
+<tr>
+<th>
+영역
+</th>
+<th>
+현재 확정 내용
+</th>
+</tr>
+<tr>
+<td>
+Brush
+</td>
+<td>
+Size/Opacity 필압 독립 제어, Stabilization, CSP식 Brush Engine, 실제
+Brush Cursor
+</td>
+</tr>
+<tr>
+<td>
+Eraser
+</td>
+<td>
+픽셀/부분 삭제, 현재 선택 Layer에만 적용
+</td>
+</tr>
+<tr>
+<td>
+Color
+</td>
+<td>
+Color Circle + 화면 결과 전체 Eyedropper 목표
+</td>
+</tr>
+<tr>
+<td>
+Shape
+</td>
+<td>
+직선 / 사각형 / 원 / 타원 / 직선 화살표, Fill 없음, 생성 후 편집
+</td>
+</tr>
+<tr>
+<td>
+Text
+</td>
+<td>
+이동 / 내용 / 크기 / 색상 수정
+</td>
+</tr>
+<tr>
+<td>
+Layer
+</td>
+<td>
+Thumbnail, Visibility, Lock, Opacity, Group, Merge, Blend Mode
+</td>
+</tr>
+<tr>
+<td>
+Selection
+</td>
+<td>
+Rectangle / Lasso 영역 선택, 이동·Scale·회전·반전·삭제
+</td>
+</tr>
+<tr>
+<td>
+Clipboard
+</td>
+<td>
+Ctrl+C / Ctrl+X / Ctrl+V
+</td>
+</tr>
+</table>
+</section>
+<section>
+<h2>
+Canvas 조작
+</h2>
+<table>
+<tr>
+<td>
+좌클릭 / 펜 드래그
+</td>
+<td>
+현재 Drawing Tool
+</td>
+</tr>
+<tr>
+<td>
+Space + 좌클릭 드래그
+</td>
+<td>
+Canvas Pan
+</td>
+</tr>
+<tr>
+<td>
+휠 클릭 + 드래그
+</td>
+<td>
+Canvas Pan
+</td>
+</tr>
+<tr>
+<td>
+휠
+</td>
+<td>
+Canvas Zoom
+</td>
+</tr>
+<tr>
+<td>
+Ctrl + Alt + 좌우 드래그
+</td>
+<td>
+Brush / Eraser 크기
+</td>
+</tr>
+<tr>
+<td>
+Ctrl + Z / Ctrl + Shift + Z
+</td>
+<td>
+Undo / Redo
+</td>
+</tr>
+</table>
+</section>
+<section>
+<h2>
+P0 Performance &amp; Data
+</h2>
+<div class="grid">
+<div class="card">
+<b>Node Separation</b>
+<p class="muted">
+금지: Stroke 1개 = Canvas Node 1개.
+</p>
+</div>
+<div class="card">
+<b>Viewport + LOD</b>
+<p class="muted">
+Viewport 주변 우선 렌더링, 화면 밖 최소화, Zoom Out LOD.
+</p>
+</div>
+<div class="card">
+<b>Batch Auto-save</b>
+<p class="muted">
+Input → Memory → 변경 축적 → Batch Save.
+</p>
+</div>
+</div>
+<p>
+<b>Data:</b> .canvas ↔︎ 별도 Drawing Data
+</p>
+<p>
+Canvas 복제 → Drawing 독립 복제 · 이름 변경/이동 → 연결 유지 · Canvas
+삭제 → Drawing Data 삭제
+</p>
+</section>
+<section>
+<h2>
+P0 Canvas Integration PoC
+</h2>
+<p>
+☐ Canvas 전체 Drawing
+</p>
+<p>
+☐ Drawing과 Canvas Node 분리
+</p>
+<p>
+☐ Canvas 좌표 유지
+</p>
+<p>
+☐ Pan / Zoom 동기화
+</p>
+<p>
+☐ Card 위 Drawing
+</p>
+<p>
+☐ Drawing Tool에서 Card 입력 차단
+</p>
+<p>
+☐ Selection Tool에서 기존 Canvas 조작 복귀
+</p>
+<p>
+☐ 저장 후 재실행 시 Drawing 복원
+</p>
+<p>
+☐ 대형 Canvas 기본 성능 확인
+</p>
+<p>
+<b class="warn">STATUS: NOT TESTED</b>
+</p>
+</section>
+<section>
+<h2>
+기술 검증 대기
+</h2>
+<p>
+• Photoshop Brush 실제 호환 범위
+</p>
+<p>
+• Brush Engine 최종 Dynamics
+</p>
+<p>
+• Eyedropper 전체 화면 샘플링
+</p>
+<p>
+• Blend Mode 최종 목록
+</p>
+<p>
+• Obsidian History와 Drawing History 통합
+</p>
+<p>
+• Canvas ↔︎ Drawing Data 식별 방식
+</p>
+<p>
+• 렌더링 / 캐싱 / Worker / 공간 인덱싱
+</p>
+</section>
+<section>
+<h2>
+명시적 제외
+</h2>
+<p class="x">
+× 별도 Drawing Canvas / Drawing Area
+</p>
+<p class="x">
+× Stroke = Canvas Node 구조
+</p>
+<p class="x">
+× Layer Duplicate
+</p>
+<p class="x">
+× 별도 Drawing Duplicate 명령
+</p>
+<p class="x">
+× Shape Fill
+</p>
+<p class="x">
+× Brush Drawing의 개별 Stroke 선택을 기본 선택 방식으로 사용
+</p>
+</section>
+<div class="section">
+<h2>
+다음 기획
+</h2>
+<p>
+<b>1. CSP식 Brush Settings 상세 UI</b>
+</p>
+<p>
+<ol start="2" type="1">
+<li>Brush Settings 노출 Parameter 확정
+</p>
+<p>
+<ol start="3" type="1">
+<li>남은 Drawing UI/UX 예외 검토
+</p>
+<p>
+<ol start="4" type="1">
+<li>Canvas Integration PoC 개발 요구사항 작성
+</p>
+</div></li>
+</ol></li>
+</ol></li>
+</ol>
+</div>
+</body>
+</html>

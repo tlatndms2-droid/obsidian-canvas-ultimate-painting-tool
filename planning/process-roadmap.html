@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Canvas Drawing Tool Bar · 전체 기획 과정과 현재 위치</title>
+  <style>
+    :root{--ink:#20304a;--muted:#61728b;--line:#dce4f0;--paper:#f5f7fb;--white:#fff;--blue:#305ec9;--blue-soft:#eaf0ff;--violet:#6d49b5;--violet-soft:#f1ebfb;--green:#18766a;--green-soft:#e5f5f1;--gray:#748398;--shadow:0 14px 38px rgba(29,50,86,.09)}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,"Malgun Gothic","Apple SD Gothic Neo",sans-serif;line-height:1.6}a{color:inherit}button{font:inherit}strong{font-weight:750}
+    .hero{background:linear-gradient(125deg,#172746,#263d74 67%,#503d86);color:#fff;padding:42px max(24px,calc((100vw - 1240px)/2)) 56px}.eyebrow{font-size:.78rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#b7c9ff}.hero h1{font-size:clamp(2rem,3.5vw,3.2rem);line-height:1.2;letter-spacing:-.045em;margin:13px 0 14px}.hero p{max-width:760px;color:#e2e9fb;margin:0;font-size:1.04rem}.hero .facts{display:flex;gap:10px;flex-wrap:wrap;margin-top:25px}.fact{border:1px solid #ffffff48;border-radius:999px;padding:6px 12px;background:#ffffff12;font-size:.88rem}
+    .layout{max-width:1240px;margin:-22px auto 80px;padding:0 20px;display:grid;grid-template-columns:280px minmax(0,1fr);gap:22px;align-items:start}.toc{position:sticky;top:16px;background:var(--white);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:20px}.toc h2{font-size:1rem;margin:0 0 12px}.toc a{display:flex;text-decoration:none;gap:10px;align-items:center;padding:8px 10px;margin:2px -4px;border-radius:10px;font-size:.89rem;color:#42536e}.toc a:hover,.toc a:focus-visible{background:var(--blue-soft);outline:none;color:var(--blue)}.toc a.current{background:var(--blue-soft);color:var(--blue);font-weight:800}.toc .num{font-variant-numeric:tabular-nums;font-weight:800;width:20px}.toc .sep{border-top:1px solid var(--line);margin:14px 0}.toc small{color:var(--muted)}
+    main{min-width:0}.panel{background:var(--white);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);padding:27px;margin-bottom:20px}.section-label{font-weight:800;color:var(--violet);font-size:.79rem;letter-spacing:.07em;text-transform:uppercase}.panel h2{font-size:1.55rem;line-height:1.3;letter-spacing:-.03em;margin:6px 0 12px}.panel p{margin:9px 0;color:#42536e}.lead{font-size:1.03rem}.status-card{background:linear-gradient(110deg,#edf2ff,#f7f4ff);border:1px solid #cfdbff;border-radius:16px;padding:20px 22px;margin:19px 0}.status-card b{display:block;font-size:1.18rem;color:#234da8}.status-card p{margin:5px 0 0}.status-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}.mini{border:1px solid var(--line);border-radius:14px;padding:15px;background:#fff}.mini .top{font-weight:800;font-size:.9rem}.mini p{font-size:.9rem;margin:6px 0 0}
+    .route{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:5px;margin:22px 0 12px}.step{position:relative;text-align:center;border-radius:12px;padding:11px 4px;min-height:92px;background:#eef1f5;border:1px solid #e1e6ee}.step b{display:block;font-size:1.24rem;font-variant-numeric:tabular-nums}.step span{display:block;font-size:.7rem;line-height:1.35;margin-top:3px}.step.done{background:var(--green-soft);border-color:#b8e5da;color:#135d55}.step.foundation{background:#f3f0fb;border-color:#ddcff5;color:#60449c}.step.now{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 6px 18px #305ec942}.step.later{background:#f3f5f8;color:#63718a}.legend{display:flex;gap:15px;flex-wrap:wrap;color:var(--muted);font-size:.83rem}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}.dot.done{background:var(--green)}.dot.foundation{background:#9a7cca}.dot.now{background:var(--blue)}.dot.later{background:#a6b0bf}
+    .stage-list{display:grid;gap:12px}.stage-card{display:grid;grid-template-columns:56px minmax(0,1fr);gap:16px;align-items:start;border:1px solid var(--line);border-radius:16px;padding:18px;background:#fff;scroll-margin-top:18px}.stage-card.current{border:2px solid var(--blue);background:#f8faff;box-shadow:0 7px 22px #315ac217}.stage-card .digit{display:grid;place-items:center;width:48px;height:48px;border-radius:14px;background:#eef2f8;color:#50617a;font-size:1.22rem;font-weight:850}.stage-card.done .digit{background:var(--green-soft);color:var(--green)}.stage-card.foundation .digit{background:var(--violet-soft);color:var(--violet)}.stage-card.current .digit{background:var(--blue);color:#fff}.stage-title{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.stage-title h3{margin:0;font-size:1.12rem}.badge{display:inline-flex;padding:3px 9px;border-radius:999px;font-weight:800;font-size:.73rem;white-space:nowrap}.badge.done{background:var(--green-soft);color:var(--green)}.badge.foundation{background:var(--violet-soft);color:var(--violet)}.badge.current{background:var(--blue-soft);color:var(--blue)}.badge.later{background:#edf0f4;color:#647388}.stage-card p{margin:8px 0 0;font-size:.94rem}.stage-card .outcome{border-left:3px solid #d3dcec;padding-left:11px;color:var(--muted)}.stage-card.current .outcome{border-color:var(--blue)}
+    .checklist{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:17px}.check{border:1px solid var(--line);border-radius:14px;padding:16px;background:#fbfcff}.check strong{display:block}.check p{font-size:.92rem;margin:5px 0 0}.callout{border-left:4px solid #d69a31;background:#fff8e9;padding:13px 16px;border-radius:0 12px 12px 0;margin-top:17px;color:#6d501b}.nextline{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:16px 0}.node{border-radius:10px;background:var(--blue-soft);color:#2852a9;padding:7px 11px;font-size:.88rem;font-weight:800}.arrow{color:#8292aa}.source-list{margin:10px 0 0;padding-left:19px;color:#52627b;font-size:.92rem}.source-list li{margin:6px 0}.source-list a{text-decoration:underline;text-decoration-color:#aab9d2;text-underline-offset:3px}
+    @media(max-width:930px){.layout{display:block}.toc{position:static;margin-bottom:20px}.toc nav{display:grid;grid-template-columns:repeat(2,1fr)}.status-grid{grid-template-columns:1fr}.route{grid-template-columns:repeat(3,1fr)}.checklist{grid-template-columns:1fr}}
+    @media(max-width:600px){.hero{padding:35px 20px 48px}.layout{padding:0 12px}.panel{padding:20px}.toc nav{grid-template-columns:1fr}.stage-card{grid-template-columns:42px 1fr;gap:11px;padding:14px}.stage-card .digit{width:40px;height:40px}.route{grid-template-columns:repeat(3,1fr)}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+    @media print{body{background:#fff}.hero{background:#fff;color:#000;padding:10px 0 20px}.hero p,.eyebrow{color:#333}.layout{display:block;margin:0;padding:0}.toc{position:static;box-shadow:none}.panel{box-shadow:none;break-inside:avoid}.stage-card{break-inside:avoid}.step.now{box-shadow:none}}
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="eyebrow">Canvas Drawing Tool Bar · 기획 지도</div>
+    <h1>전체 기획 과정과 현재 위치</h1>
+    <p>개발 기획 전문 GPT의 0~8단계를 기준으로 현재 무엇을 정했고, 무엇이 아직 비어 있는지 보여줍니다. 기능 시험과 기획 완료는 별도로 판단합니다.</p>
+    <div class="facts"><span class="fact">현재 초점: 3단계 사용 흐름</span><span class="fact">기능·UI 상세 기획 미완료</span><span class="fact">배포 단계 아님</span></div>
+  </header>
+  <div class="layout">
+    <aside class="toc" aria-label="목차">
+      <h2>목차</h2>
+      <nav>
+        <a href="#overview"><span class="num">↳</span>현재 위치 요약</a>
+        <a href="#map"><span class="num">↳</span>전체 단계 지도</a>
+        <a href="#stage0"><span class="num">0</span>자료 수집</a>
+        <a href="#stage1"><span class="num">1</span>프로젝트 정의</a>
+        <a href="#stage2"><span class="num">2</span>요구사항 정의</a>
+        <a href="#stage3" class="current" aria-current="step"><span class="num">3</span>사용 구조 설계 · 현재</a>
+        <a href="#stage4"><span class="num">4</span>기능 설계</a>
+        <a href="#stage5"><span class="num">5</span>UI·데이터·동작</a>
+        <a href="#stage6"><span class="num">6</span>예외·제약·품질</a>
+        <a href="#stage7"><span class="num">7</span>범위·완료 기준</a>
+        <a href="#stage8"><span class="num">8</span>전체 검증·최종 문서</a>
+      </nav>
+      <div class="sep"></div>
+      <small>목차를 누르면 해당 단계로 이동합니다. 상태는 2026-09-27의 기획 기록을 기준으로 합니다.</small>
+    </aside>
+    <main>
+      <section class="panel" id="overview">
+        <div class="section-label">현재 위치</div>
+        <h2>3단계: 실제 사용 순서를 만드는 중</h2>
+        <p class="lead">Obsidian Canvas에서 직접 그린다는 방향과 주요 기능 목표는 있습니다. 지금은 <strong>Canvas 열기 → 도구 선택 → 그리기·수정 → 저장·다시 열기</strong>를 기능별로 끊김 없이 설명하는 단계입니다.</p>
+        <div class="status-card"><b>기획 전체가 끝난 상태가 아닙니다.</b><p>기능 목록과 HTML UI 모형은 출발 자료입니다. 브러시·색 혼합·레이어·선택 도구의 세부 조작, 화면 상태, 데이터 관계를 아직 정리해야 합니다. 앞서 나온 개인용·단계적 출시 답변은 나중에 범위를 정할 때 다시 확인할 참고 기록으로 둡니다.</p></div>
+        <div class="status-grid">
+          <div class="mini"><div class="top">이미 확보한 것</div><p>기존 기획 자료, 사용자 결정, Windows Sandbox의 일부 구현 가능성 근거.</p></div>
+          <div class="mini"><div class="top">지금 하는 것</div><p>주요 사용 상황마다 시작점·누르는 순서·보이는 결과·저장 후 상태를 연결.</p></div>
+          <div class="mini"><div class="top">아직 아닌 것</div><p>완성된 기능 설계, 최종 UI, 개발 착수 승인, 설치·배포 계획.</p></div>
+        </div>
+      </section>
+
+      <section class="panel" id="map">
+        <div class="section-label">한눈에 보는 순서</div>
+        <h2>0에서 8까지: 기획의 목차</h2>
+        <div class="route" role="img" aria-label="0 자료 수집 완료, 1 프로젝트 정의 완료, 2 요구사항 기준선 확보, 3 사용 구조 현재 진행, 4부터 8까지 앞으로 진행">
+          <div class="step done"><b>0</b><span>자료<br>수집</span></div><div class="step done"><b>1</b><span>프로젝트<br>정의</span></div><div class="step foundation"><b>2</b><span>요구사항<br>기준선</span></div><div class="step now"><b>3</b><span>사용 흐름<br>현재</span></div><div class="step later"><b>4</b><span>기능<br>설계</span></div><div class="step later"><b>5</b><span>UI·데이터<br>동작</span></div><div class="step later"><b>6</b><span>예외·품질</span></div><div class="step later"><b>7</b><span>범위·완료<br>기준</span></div><div class="step later"><b>8</b><span>최종 검증<br>기획서</span></div>
+        </div>
+        <div class="legend"><span><i class="dot done"></i>현재 단계로 넘어갈 만큼 확보</span><span><i class="dot foundation"></i>기준선은 있으나 보완 가능</span><span><i class="dot now"></i>현재 초점</span><span><i class="dot later"></i>단계 완료 전</span></div>
+        <p>4~6단계에 해당하는 메모나 시험은 이미 일부 있지만, 해당 단계의 <strong>완료 조건을 충족한 것은 아닙니다.</strong> 새 결정이 나오면 앞 단계도 필요한 부분만 다시 살핍니다.</p>
+      </section>
+
+      <section class="panel" id="stages">
+        <div class="section-label">단계별 작업과 완료 기준</div>
+        <h2>각 단계에서 무엇을 만들어야 하나요?</h2>
+        <div class="stage-list">
+          <article class="stage-card done" id="stage0"><div class="digit">0</div><div><div class="stage-title"><h3>시작 및 자료 수집</h3><span class="badge done">기준 확보</span></div><p>기존 ZIP 기획 자료, Canvas 관련 요구, 사용자 답변, Sandbox 시험 결과를 모아 서로 다른 출처를 구분합니다.</p><p class="outcome"><strong>넘어가는 기준:</strong> 만들고자 하는 도구의 기본 방향과 다음 핵심 질문을 알 수 있음. 이 기준은 충족했습니다.</p></div></article>
+          <article class="stage-card done" id="stage1"><div class="digit">1</div><div><div class="stage-title"><h3>프로젝트 정의</h3><span class="badge done">방향 확보</span></div><p>Windows Obsidian Canvas에서 카드와 같은 공간에 그림을 그릴 수 있게 한다는 목적, 주 사용자와 사용 환경을 정리합니다.</p><p class="outcome"><strong>넘어가는 기준:</strong> 누가 어디서 어떤 문제를 해결하려는지 설명할 수 있음. 현재 자료로 설명 가능합니다.</p></div></article>
+          <article class="stage-card foundation" id="stage2"><div class="digit">2</div><div><div class="stage-title"><h3>요구사항 정의</h3><span class="badge foundation">기준선 확보·보완 중</span></div><p>그리기·레이어·색 혼합·브러시 가져오기·저장 등 원하는 결과와 제외 항목을 정리합니다. 기능 이름이 있다고 세부 동작까지 확정된 것은 아닙니다.</p><p class="outcome"><strong>남은 일:</strong> 사용 흐름을 만들면서 빠진 요구를 보완하고, 필수·선택·후속·제외를 다시 점검합니다.</p></div></article>
+          <article class="stage-card current" id="stage3"><div class="digit">3</div><div><div class="stage-title"><h3>사용 구조 설계</h3><span class="badge current">지금 여기</span></div><p>Canvas를 연 뒤 도구를 고르고, 그림을 만들고, 레이어를 바꾸고, 내용을 수정하고, 저장·재실행하는 순서를 실제 화면 기준으로 이어 붙입니다.</p><p class="outcome"><strong>넘어가는 기준:</strong> 주요 작업마다 “어디서 시작 → 무엇을 누름 → 무엇이 보임 → 다음 행동 → 최종 결과”가 빠짐없이 설명됨. 현재는 일부 흐름만 초안입니다.</p></div></article>
+          <article class="stage-card" id="stage4"><div class="digit">4</div><div><div class="stage-title"><h3>기능 설계</h3><span class="badge later">다음 중심 단계</span></div><p>브러시·지우개·색 혼합·프리셋·레이어·선택·도형·문자 등의 기능을 사용 조건, 행동, 결과, 상태 변화로 풀어냅니다. CSP 참고 동작과 사용자 고유 결정을 구분합니다.</p><p class="outcome"><strong>넘어가는 기준:</strong> 핵심 요구를 만족하는 기능 구조와 주요 동작이 정의됨. 현재는 기능 목록과 일부 사용 예시만 있습니다.</p></div></article>
+          <article class="stage-card" id="stage5"><div class="digit">5</div><div><div class="stage-title"><h3>UI·데이터·시스템 동작 설계</h3><span class="badge later">상세 설계 필요</span></div><p>왼쪽 도구 막대, 브러시 패널, 오른쪽 레이어 패널의 버튼·메뉴·선택·피드백을 정합니다. Canvas별 그림과 Vault 공용 브러시, 저장·복원 관계도 연결합니다.</p><p class="outcome"><strong>넘어가는 기준:</strong> 버튼을 누른 뒤의 화면과 데이터 상태를 구현 담당자가 해석 없이 알 수 있음. 현재 HTML은 UI 모형일 뿐입니다.</p></div></article>
+          <article class="stage-card" id="stage6"><div class="digit">6</div><div><div class="stage-title"><h3>예외·제약·품질 설계</h3><span class="badge later">위험 기록만 일부</span></div><p>저장 중 전환, 삭제·복원, 지원하지 않는 ABR 속성, 대형 Canvas 반응성 등 실제로 중요한 실패와 품질 기준을 정합니다.</p><p class="outcome"><strong>넘어가는 기준:</strong> 중요한 손실·실패 때 무엇이 남고 어떻게 복구하며, 어느 수준을 통과로 볼지 설명됨. Sandbox 시험 일부가 있어도 제품 품질 설계는 미완료입니다.</p></div></article>
+          <article class="stage-card" id="stage7"><div class="digit">7</div><div><div class="stage-title"><h3>범위 및 완료 기준 확정</h3><span class="badge later">아직 이름 붙일 단계 아님</span></div><p>기능과 UI가 구체화된 뒤 첫 사용 버전과 후속 버전에 무엇을 넣을지, 사용자가 어떤 결과를 보면 완료인지 최종 결정합니다.</p><p class="outcome"><strong>넘어가는 기준:</strong> 포함·후속·제외와 기능별 완료 조건이 모순 없이 정리됨. 개인용·단계적 진행 답변은 여기서 다시 대조할 참고 결정입니다.</p></div></article>
+          <article class="stage-card" id="stage8"><div class="digit">8</div><div><div class="stage-title"><h3>전체 검증 및 최종 기획서 완성</h3><span class="badge later">미착수</span></div><p>처음부터 끝까지 가상의 사용 흐름을 따라가며 빠진 기능, 충돌, 미결정을 점검하고 개발자가 사용할 최종 기획서로 묶습니다.</p><p class="outcome"><strong>끝나는 기준:</strong> 중요한 공백과 충돌을 해결하거나 명시적으로 보류하고, 최종 기획서 작성 여부를 사용자에게 확인함. 현재 그 상태가 아닙니다.</p></div></article>
+        </div>
+      </section>
+
+      <section class="panel" id="next">
+        <div class="section-label">바로 다음 작업</div>
+        <h2>기능 이름보다 실제 사용 순서부터</h2>
+        <div class="nextline"><span class="node">브러시 선택</span><span class="arrow">→</span><span class="node">Canvas에 그리기</span><span class="arrow">→</span><span class="node">레이어·색 조절</span><span class="arrow">→</span><span class="node">수정·되돌리기</span><span class="arrow">→</span><span class="node">저장·다시 열기</span></div>
+        <div class="checklist"><div class="check"><strong>지금 채울 것</strong><p>각 행동의 시작 화면, 누르는 버튼, 작업 중 표시, 끝난 뒤 결과, Canvas 카드와 그림의 차이.</p></div><div class="check"><strong>그다음 채울 것</strong><p>각 기능의 세부 동작·설정과 UI 상태, 프리셋·레이어·Canvas 사이의 데이터 관계.</p></div></div>
+        <div class="callout"><strong>구현 가능성 시험은 별도 증거입니다.</strong> 브러시 시험판에서 작동하고 사용자도 렉 감소를 확인했지만, 그것만으로 위 기획 단계나 제품 기능을 완료 처리하지 않습니다.</div>
+      </section>
+
+      <section class="panel" id="sources">
+        <div class="section-label">판단 근거</div><h2>이 지도의 기준 문서</h2>
+        <ul class="source-list"><li>개발 기획 전문 GPT의 <strong>01_Core_Process.md</strong>: 0~8단계 이름과 각 단계 완료 조건.</li><li><a href="PLANNING_STATE.md">현재 기획 상태</a>: 사용자 결정과 보류 사항.</li><li><a href="WORKING_PRODUCT_FLOW.md">작업용 사용 흐름</a>: 초안으로 작성된 대표 시나리오.</li><li><a href="CSP_REFERENCE_RULES.md">CSP 참고 기본값</a>: 이미 답한 내용을 반복 질문하지 않기 위한 참고 규칙.</li><li><a href="feature-review.html">기능·UI 모형</a>: 확정된 화면 설계가 아닌 검토용 시안.</li></ul>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

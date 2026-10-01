@@ -1,0 +1,187 @@
+{
+  "title": "Large-PoC - CanvasDrawingSandbox-20260927 - Obsidian 1.13.7",
+  "fixture": "Minimum-Undo-1790493379878.canvas",
+  "backupHashes": {
+    ".obsidian/workspace.json": "aa84d913bb18553351a12828efb6c6a63ac8c6ee7b489510342b661f8cad8f5d"
+  },
+  "pluginHashes": {
+    "main.js": {
+      "source": "3fc5dd2d012717103ac740b69fe7c867e96ca3cf831a9229f9b7422f7421aee1",
+      "installed": "3fc5dd2d012717103ac740b69fe7c867e96ca3cf831a9229f9b7422f7421aee1"
+    },
+    "manifest.json": {
+      "source": "9bf51f15dfffa634a9a52d22de435c9e09e7f7040938e0669fc526cfae7a9942",
+      "installed": "9bf51f15dfffa634a9a52d22de435c9e09e7f7040938e0669fc526cfae7a9942"
+    },
+    "styles.css": {
+      "source": "7ad5606c7c58f624f2e0c09d772dcdbfcb15c6b510e548173937065792ba5059",
+      "installed": "7ad5606c7c58f624f2e0c09d772dcdbfcb15c6b510e548173937065792ba5059"
+    }
+  },
+  "primitives": {
+    "modes": {
+      "multiply": {
+        "accepted": true,
+        "pixel": [
+          0,
+          0,
+          0,
+          255
+        ]
+      },
+      "screen": {
+        "accepted": true,
+        "pixel": [
+          255,
+          0,
+          255,
+          255
+        ]
+      },
+      "overlay": {
+        "accepted": true,
+        "pixel": [
+          255,
+          0,
+          0,
+          255
+        ]
+      },
+      "darken": {
+        "accepted": true,
+        "pixel": [
+          0,
+          0,
+          0,
+          255
+        ]
+      },
+      "lighten": {
+        "accepted": true,
+        "pixel": [
+          255,
+          0,
+          255,
+          255
+        ]
+      },
+      "color-dodge": {
+        "accepted": true,
+        "pixel": [
+          255,
+          0,
+          0,
+          255
+        ]
+      },
+      "color-burn": {
+        "accepted": true,
+        "pixel": [
+          255,
+          0,
+          0,
+          255
+        ]
+      },
+      "difference": {
+        "accepted": true,
+        "pixel": [
+          255,
+          0,
+          255,
+          255
+        ]
+      }
+    },
+    "mixMid": [
+      218,
+      57,
+      65,
+      255
+    ],
+    "mixConclusion": "Toy RGB pickup example only. Not pigment simulation, not approved quality, not layer policy or performance proof."
+  },
+  "eyedropper": {
+    "exists": true,
+    "secure": true,
+    "activation": {
+      "error": "AbortError",
+      "message": "Failed to execute 'open' on 'EyeDropper': The user canceled the selection."
+    }
+  },
+  "undoSequence": {
+    "start": {
+      "strokes": 0,
+      "node": {
+        "x": -150,
+        "y": -70
+      },
+      "historyKeys": [
+        "data",
+        "current",
+        "max"
+      ],
+      "file": "Minimum-Undo-1790493379878.canvas"
+    },
+    "first": {
+      "strokes": 1,
+      "node": {
+        "x": -150,
+        "y": -70
+      },
+      "historyKeys": [
+        "data",
+        "current",
+        "max"
+      ],
+      "file": "Minimum-Undo-1790493379878.canvas"
+    },
+    "moved": {
+      "strokes": 1,
+      "node": {
+        "x": -80,
+        "y": -20
+      },
+      "historyKeys": [
+        "data",
+        "current",
+        "max"
+      ],
+      "file": "Minimum-Undo-1790493379878.canvas"
+    },
+    "second": {
+      "strokes": 2,
+      "node": {
+        "x": -80,
+        "y": -20
+      },
+      "historyKeys": [
+        "data",
+        "current",
+        "max"
+      ],
+      "file": "Minimum-Undo-1790493379878.canvas"
+    },
+    "undo": {
+      "strokes": 2,
+      "node": {
+        "x": -150,
+        "y": -70
+      },
+      "historyKeys": [
+        "data",
+        "current",
+        "max"
+      ],
+      "file": "Minimum-Undo-1790493379878.canvas"
+    }
+  },
+  "errors": [],
+  "notRun": [
+    "ABR import: no .abr in project",
+    "Physical pen pressure/tilt: no device input",
+    "Large canvas optimization: deferred by agreement",
+    "Full native Undo integration: no adapter implemented",
+    "Actual EyeDropper pixel selection: not performed"
+  ]
+}
