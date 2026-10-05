@@ -145,7 +145,7 @@ class CanvasSession {
     if (this.disposed) return;
     this.ready=true;
     for(const [name,redo]of [['undo',false],['redo',true]]){const old=this.canvas[name],session=this;if(typeof old!=='function')continue;const wrapped=function(...args){if(session.drawing&&session.tool!=='text'&&session.isActive()&&!session.doc.activeElement?.closest('input,textarea,select,[contenteditable=true],.modal')){session.nativeDrawingUndoAt=Date.now();session.win.setTimeout(()=>session.nativeDrawingUndoAt=0,0);session.undoDrawing(redo);return;}return old.apply(this,args);};this.canvas[name]=wrapped;this.listeners.push(()=>{if(this.canvas[name]===wrapped)this.canvas[name]=old;});}
-    this.workspaceUI.applyLayout();if(this.plugin.settings.colorCollapsed===false)this.colorUI.open();this.anchors=new AnchorUI(this);this.zoomExtension=require('./extended-zoom').install(this);this.visibility=new (require('./canvas-visibility').CanvasVisibility)(this);this.anchors.sync(); this.layerUI.render();this.showStatus(); this.render();
+    this.workspaceUI.applyLayout();this.anchors=new AnchorUI(this);this.zoomExtension=require('./extended-zoom').install(this);this.visibility=new (require('./canvas-visibility').CanvasVisibility)(this);this.anchors.sync(); this.layerUI.render();this.showStatus(); this.render();
   }
   listen(target,type,fn,options) {
     target.addEventListener(type,fn,options);
