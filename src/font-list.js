@@ -21,6 +21,6 @@ function fontControl(s,parent,current,change){
  const populate=entries=>{const value=select.value||current;select.replaceChildren();const fonts=[{family:'',label:'Obsidian 기본'},...entries];if(value&&!fonts.some(f=>f.family===value))fonts.push({family:value,label:value});for(const f of fonts){const o=s.element('option','',select,f.label);o.value=f.family;o.title=f.family;}select.value=value;};
  populate(s.win.__cdtFontEntries||[]);select.onchange=()=>change(select.value);
  const load=async refresh=>{try{const names=await installedFonts(s.win,refresh);if(select.isConnected)populate(names);}catch(error){new Notice('설치 폰트 목록: '+error.message);}};
- s.button(row,'refresh-cw','설치 폰트 새로고침',()=>load(true));load(false);
+ s.button(row,'refresh-cw','설치 폰트 새로고침',()=>load(true));if(!s.win.__cdtFontEntries)load(false);
 }
 module.exports={installedFonts,fontControl};

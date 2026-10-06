@@ -11,7 +11,6 @@ class DrawingKeyboard{
  if(input?.getAttribute('aria-label')==='단축키 입력')return true;
  if(input||modal){const edit=(e.ctrlKey||e.metaKey)&&!e.altKey&&['KeyA','KeyC','KeyV','KeyX','KeyZ','KeyY'].includes(e.code);if(edit||(!e.ctrlKey&&!e.metaKey&&!e.altKey))return true;e.preventDefault();return false;}
  s.keyDown(e,true);
- if(e.code==='Space'&&!e.ctrlKey&&!e.metaKey&&!e.altKey)return true;
  e.preventDefault();return false;
  }
  destroy(){for(const[scope,{old,wrapped}]of this.scopes)if(scope.handleKey===wrapped)scope.handleKey=old;this.scopes.clear();}

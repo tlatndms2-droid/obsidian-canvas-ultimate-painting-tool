@@ -1,7 +1,7 @@
 {
   "id": "canvas-drawing-tool-bar",
   "name": "Canvas Drawing Tool Bar",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "minAppVersion": "1.12.7",
   "description": "Draw on Obsidian Canvas with brush presets, pressure curves and persistent drawing storage.",
   "author": "tlatndms2-droid",

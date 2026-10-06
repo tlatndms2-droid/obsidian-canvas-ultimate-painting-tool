@@ -37,7 +37,7 @@ class BrushUI {
   const quick=this.el('div','cdt-quick',panel);for(const key of this.quick){if(fields[key])this.field(quick,key);else if(['mix','texture','textureEachPlot','flipX','flipY'].includes(key))this.exposedCheck(quick,{mix:'바탕색 혼합',texture:'종이 재질 사용',textureEachPlot:'점별로 적용',flipX:'좌우 반전',flipY:'상하 반전'}[key],key);}
   this.icon(panel,'rotate-ccw','도구 기본값 복원',()=>this.resetDefaults(this.p));
   require('./ui-actions').bind(this.s,this.btn(panel,'브러시 상세 설정',()=>this.details()),'action:brush-details','브러시 상세 설정',()=>require('./ui-actions').dialog(this.s,'보조 도구 상세',()=>this.details()));require('./ui-actions').bind(this.s,this.btn(panel,'펜 / 커서 설정',()=>this.device()),'action:device','펜 / 커서 설정',()=>require('./ui-actions').dialog(this.s,'펜 / 커서 설정',()=>this.device()));this.btn(panel,'ABR 가져오기',()=>this.materials.abr());
-  this.el('p','cdt-hint',panel,'B / E: 도구 · Z: 색 전환 · X: 혼합 · C: 투명색\nCtrl + Alt + 좌우 드래그: 크기\nCtrl + 펜 보조 버튼 + 좌우 드래그: 확대 / 축소\nSpace: 이동 · Ctrl + Z: 실행 취소');
+  this.el('p','cdt-hint',panel,'B / E: 도구 · Z: 색 전환 · X: 혼합 · C: 투명색\nCtrl + Alt + 좌우 드래그: 크기\nCtrl + 펜 보조 버튼 + 좌우 드래그: 확대 / 축소\n'+(this.plugin.settings.shortcuts.canvasPan||'미지정')+': 이동 · Ctrl + Z: 실행 취소');
  }
  choose(p){if(!this.s.quickTools?.selecting)this.s.quickTools?.close();this.s.finishStroke();this.s.figures.confirm();this.s.selection.confirm(true);this.plugin.settings[p.tool==='eraser'?'selectedEraser':'selectedBrush']=p.id;this.s.tool=p.tool;this.s.workspaceUI?.remember();this.render();this.s.refreshControls();for(const s of this.plugin.sessions.values())if(s!==this.s&&s.tool===p.tool)s.brushUI.render();this.save();}
  field(parent,key,eyes=false){
