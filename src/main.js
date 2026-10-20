@@ -236,6 +236,7 @@ class CanvasSession {
     if(!fromScope&&this.plugin.keyboard?.handled.has(event))return;
     if(this.view.file!==this.file)return;
     if (!this.isActive() || event.target.closest('input,textarea,select,[contenteditable=true],.modal')) return;
+    if(require('./text-shortcut').handle(this,event))return;
     if(require('./keyboard-keys').keyOf(event)===this.plugin.settings.shortcuts.drawing){event.preventDefault();event.stopImmediatePropagation();if(!event.repeat)this.setMode(!this.drawing);return;}
     if(!this.drawing)return;
     if(event.key==='Alt'&&!event.repeat&&this.lastPointer)require('./layer-pick').hover(this,{target:this.lastPointer.target,clientX:this.lastPointer.clientX,clientY:this.lastPointer.clientY,buttons:this.lastPointer.buttons,altKey:true,ctrlKey:event.ctrlKey,metaKey:event.metaKey});
