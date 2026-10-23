@@ -228,7 +228,9 @@ class CanvasSession {
     this.panel.hidden=this.layers.hidden=this.tools.hidden=!on;this.cursor.hidden=true;if(this.mixHint)this.mixHint.hidden=true;this.colorPopup.hidden=true;
     this.toggle.classList.toggle('is-active',on); this.toggle.setAttribute('aria-pressed',String(on));
     this.toggle.title=on?'Drawing 툴바 끄기':'Drawing 툴바 켜기'; this.toggle.setAttribute('aria-label',this.toggle.title);
-    this.host.classList.toggle('cdt-drawing',on);this.plugin.keyboard?.update();this.visibility?.apply();this.refreshControls();if(on&&this.plugin.settings.colorCollapsed===false)this.colorUI?.open();this.scheduleRender();
+    this.host.classList.toggle('cdt-drawing',on);
+    this.host.dispatchEvent(new this.win.CustomEvent('canvas-drawing-tool-bar:mode-change',{bubbles:true,detail:{drawing:on}}));
+    this.plugin.keyboard?.update();this.visibility?.apply();this.refreshControls();if(on&&this.plugin.settings.colorCollapsed===false)this.colorUI?.open();this.scheduleRender();
   }
   settle(blurText=true){require('./navigation-shortcuts').reset(this);require('./layer-pick').clearHover(this);this.figures?.confirm();this.selection?.confirm(false);this.selection?.end();this.restoreCtrlObject();this.finishStroke();this.colorUI?.close();if(blurText)for(const n of this.canvas.nodes.values())if(n.isEditing)n.blur();}
   isActive() { return this.plugin.app.workspace.activeLeaf?.view===this.view; }
