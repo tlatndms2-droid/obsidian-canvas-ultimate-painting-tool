@@ -19,7 +19,7 @@ const R=require('./raster-edit');
 const {seal,freeze}=require('./history-state');
 const {History}=require('./history');
 const {HistoryUI,HistorySettings}=require('./history-ui');
-const {TextItems}=require('./text-items');
+
 const {DrawingSelection}=require('./selection');
 const {PaperUI,defaults:paperDefaults}=require('./paper');
 const {makeLayer,upgradeLayers,writable,ancestors,snapshot,restore,LayerRenderer}=require('./layers');
@@ -144,7 +144,7 @@ class CanvasSession {
     }
     if (this.disposed) return;
     this.ready=true;
-    for(const [name,redo]of [['undo',false],['redo',true]]){const old=this.canvas[name],session=this;if(typeof old!=='function')continue;const wrapped=function(...args){if(session.drawing&&session.tool!=='text'&&session.isActive()&&!session.doc.activeElement?.closest('input,textarea,select,[contenteditable=true],.modal')){session.nativeDrawingUndoAt=Date.now();session.win.setTimeout(()=>session.nativeDrawingUndoAt=0,0);session.undoDrawing(redo);return;}return old.apply(this,args);};this.canvas[name]=wrapped;this.listeners.push(()=>{if(this.canvas[name]===wrapped)this.canvas[name]=old;});}
+    for(const [name,redo]of [['undo',false],['redo',true]]){const old=this.canvas[name],session=this;if(typeof old!=='function')continue;const wrapped=function(...args){if(session.drawing&&session.isActive()&&!session.doc.activeElement?.closest('input,textarea,select,[contenteditable=true],.modal')){session.nativeDrawingUndoAt=Date.now();session.win.setTimeout(()=>session.nativeDrawingUndoAt=0,0);session.undoDrawing(redo);return;}return old.apply(this,args);};this.canvas[name]=wrapped;this.listeners.push(()=>{if(this.canvas[name]===wrapped)this.canvas[name]=old;});}
     this.workspaceUI.applyLayout();this.anchors=new AnchorUI(this);this.zoomExtension=require('./extended-zoom').install(this);this.visibility=new (require('./canvas-visibility').CanvasVisibility)(this);this.anchors.sync(); this.layerUI.render();this.showStatus(); this.render();
   }
   listen(target,type,fn,options) {
@@ -161,7 +161,7 @@ class CanvasSession {
     b.setAttribute('aria-label',label); b.title=label; b.addEventListener('click',action); return b;
   }
   buildUI() {
-    this.host.classList.add('cdt-session');this.toolbar=this.element('div','cdt-toolbar',this.host);
+    this.listen(this.host,'canvas-text-tool:activate',()=>{if(this.drawing)this.setMode(false);});this.host.classList.add('cdt-session');this.toolbar=this.element('div','cdt-toolbar',this.host);
     this.toggle=this.button(this.toolbar,'pen-tool','Drawing 툴바 켜기',()=>this.setMode(!this.drawing));
     this.toggle.classList.add('cdt-toggle');
     this.tools=this.element('div','cdt-tools',this.toolbar);this.tools.hidden=true;
@@ -182,7 +182,7 @@ class CanvasSession {
     this.refreshControls();
     this.layers=this.element('aside','cdt-layers',this.host);
     this.layerUI=new LayerUI(this);this.layerUI.render();
-    this.selection=new DrawingSelection(this);this.paper=new PaperUI(this);this.figures=new Figures(this);this.textItems=new TextItems(this);this.quickTools=new QuickTools(this);this.workspaceUI=new WorkspaceUI(this);this.layerLayout=floating(this,this.layers,'layers');this.brushLayout=floating(this,this.panel,'context');this.figureLayout=floating(this,this.figures.panel,'context');this.quickLayout=floating(this,this.quickTools.panel,'quick');require('./ui-actions').install(this);
+    this.selection=new DrawingSelection(this);this.paper=new PaperUI(this);this.figures=new Figures(this);this.quickTools=new QuickTools(this);this.workspaceUI=new WorkspaceUI(this);this.layerLayout=floating(this,this.layers,'layers');this.brushLayout=floating(this,this.panel,'context');this.figureLayout=floating(this,this.figures.panel,'context');this.quickLayout=floating(this,this.quickTools.panel,'quick');require('./ui-actions').install(this);
     this.notice=this.element('div','cdt-save-warning',this.host); this.notice.hidden=true;
     this.notice.setAttribute('role','status');
     this.retry=this.button(this.notice,'refresh-cw','저장 다시 시도',()=>this.plugin.flush());
@@ -191,11 +191,11 @@ class CanvasSession {
     require('./navigation-shortcuts').install(this);
     this.listen(this.host,'contextmenu',e=>{if(this.drawing&&!e.target.closest('.cdt-history,.cdt-panel-edge,.cdt-panel,.cdt-layers,.cdt-toolbar,.cdt-color-popup')){e.preventDefault();e.stopImmediatePropagation();return;}if(this.drawing&&(this.selection.pasting||Date.now()<this.selection.suppressContextUntil)){e.preventDefault();e.stopImmediatePropagation();this.selection.endPaste();return;}if(this.drawing&&e.pointerType==='pen'&&(e.ctrlKey||this.plugin.settings.penButton!=='none')){e.preventDefault();e.stopImmediatePropagation();}},true);
     this.listen(this.host,'drop',e=>{if(this.drawing&&!e.target.closest('.cdt-history,.cdt-panel-edge,.cdt-panel,.cdt-layers')&&!e.dataTransfer?.types.includes('application/cdt-layers')){e.preventDefault();e.stopImmediatePropagation();}},true);
-    this.listen(this.host,'dblclick',e=>{if(!this.drawing||this.tool==='text'||this.space||this.canvas.isHoldingSpace)return;if(e.target.closest('.cdt-history,.cdt-panel-edge,.cdt-anchors,.cdt-panel,.cdt-layers,.cdt-toolbar,.cdt-color-popup,.canvas-controls,.cdt-save-warning'))return;e.preventDefault();e.stopImmediatePropagation();if(this.tool==='shape'&&!['line','arrow-angle','arrow-curve'].includes(this.figures.pending?.kind))this.figures.confirm();},true);
+    this.listen(this.host,'dblclick',e=>{if(!this.drawing||this.space||this.canvas.isHoldingSpace)return;if(e.target.closest('.cdt-history,.cdt-panel-edge,.cdt-anchors,.cdt-panel,.cdt-layers,.cdt-toolbar,.cdt-color-popup,.canvas-controls,.cdt-save-warning'))return;e.preventDefault();e.stopImmediatePropagation();if(this.tool==='shape'&&!['line','arrow-angle','arrow-curve'].includes(this.figures.pending?.kind))this.figures.confirm();},true);
     // Canvas has an earlier capture listener on the wrapper. Intercept drawing input
     // on its ancestor before that listener can select or edit the underlying card.
-    this.listen(this.doc,'pointerdown',e=>{if(this.ready&&this.drawing&&this.tool!=='text'&&!this.space&&!this.canvas.isHoldingSpace&&e.button===0&&e.pointerType!=='touch'&&this.host.contains(e.target)&&!e.target.closest('.cdt-history,.cdt-panel-edge,.cdt-anchors,.cdt-selection-bar,.cdt-panel,.cdt-layers,.cdt-save-warning,.cdt-toolbar,.cdt-color-popup,.canvas-controls,.canvas-menu,.canvas-card-menu')){this.pointerDown(e);e.preventDefault();e.stopImmediatePropagation();}},true);
-    for(const type of ['mousedown','mouseup','click','dblclick'])this.listen(this.doc,type,e=>{if(this.ready&&this.drawing&&this.tool!=='text'&&!this.space&&!this.canvas.isHoldingSpace&&this.host.contains(e.target)&&!e.target.closest('.cdt-history,.cdt-panel-edge,.cdt-anchors,.cdt-selection-bar,.cdt-panel,.cdt-layers,.cdt-save-warning,.cdt-toolbar,.cdt-color-popup,.canvas-controls,.canvas-menu')){e.preventDefault();e.stopImmediatePropagation();}},true);
+    this.listen(this.doc,'pointerdown',e=>{if(this.ready&&this.drawing&&!this.space&&!this.canvas.isHoldingSpace&&e.button===0&&e.pointerType!=='touch'&&this.host.contains(e.target)&&!e.target.closest('.cdt-history,.cdt-panel-edge,.cdt-anchors,.cdt-selection-bar,.cdt-panel,.cdt-layers,.cdt-save-warning,.cdt-toolbar,.cdt-color-popup,.canvas-controls,.canvas-menu,.canvas-card-menu')){this.pointerDown(e);e.preventDefault();e.stopImmediatePropagation();}},true);
+    for(const type of ['mousedown','mouseup','click','dblclick'])this.listen(this.doc,type,e=>{if(this.ready&&this.drawing&&!this.space&&!this.canvas.isHoldingSpace&&this.host.contains(e.target)&&!e.target.closest('.cdt-history,.cdt-panel-edge,.cdt-anchors,.cdt-selection-bar,.cdt-panel,.cdt-layers,.cdt-save-warning,.cdt-toolbar,.cdt-color-popup,.canvas-controls,.canvas-menu')){e.preventDefault();e.stopImmediatePropagation();}},true);
     for(const type of ['mousedown','mousemove','mouseup'])this.listen(this.doc,type,e=>{if(this.colorUI.pick&&(this.colorUI.pick.held||this.colorUI.pick.released)){e.preventDefault();e.stopImmediatePropagation();}},true);
     this.listen(this.host,'pointerdown',e=>this.pointerDown(e),true);
     this.listen(this.win,'pointermove',e=>this.pointerMove(e),true);
@@ -206,7 +206,7 @@ class CanvasSession {
     this.listen(this.win,'blur',()=>{require('./layer-pick').clearHover(this);this.colorUI?.cancelPick();});
     this.toolShift=new ToolShift(this);
     this.listen(this.doc,'keyup',e=>{this.toolShift.up(e);if(e.key==='Alt')require('./layer-pick').clearHover(this);if(e.code==='ShiftLeft'||e.code==='ShiftRight')this.linePreview?.replaceChildren();if(e.code==='Space')this.space=false;if(e.key==='Control'&&!this.selection.drag)this.restoreCtrlObject();if(e.key.toUpperCase()===this.plugin.settings.shortcuts.move)this.restoreTemporaryTool();},true);
-    this.listen(this.win,'blur',()=>{this.toolShift.restore();this.textItems.cancel();this.space=false;this.restoreTemporaryTool();this.settle(false);this.plugin.flush();});
+    this.listen(this.win,'blur',()=>{this.toolShift.restore();this.space=false;this.restoreTemporaryTool();this.settle(false);this.plugin.flush();});
     this.listen(this.win,'beforeunload',()=>{this.settle();this.plugin.store.checkpoint();});
     this.listen(this.doc,'visibilitychange',()=>{if(this.doc.hidden){this.settle();this.plugin.flush();}});
     this.observer=new this.win.MutationObserver(()=>this.scheduleRender());
@@ -224,7 +224,7 @@ class CanvasSession {
     require('./navigation-shortcuts').reset(this);
     if(this.view.file!==this.file) {this.plugin.sync();return;}
     if (on && !this.ready) {new Notice(this.loadError || '그림 데이터를 준비하고 있습니다.');return;}
-    this.figures?.confirm();this.textItems?.cancel();this.selection?.confirm(false);this.selection?.end();this.colorUI?.close();this.finishStroke(); this.plugin.flush(); this.drawing=on;this.linePreview?.replaceChildren();if(on&&this.tool==='text')this.tool='brush';
+    this.figures?.confirm();this.selection?.confirm(false);this.selection?.end();this.colorUI?.close();this.finishStroke(); this.plugin.flush(); this.drawing=on;this.linePreview?.replaceChildren();
     this.panel.hidden=this.layers.hidden=this.tools.hidden=!on;this.cursor.hidden=true;if(this.mixHint)this.mixHint.hidden=true;this.colorPopup.hidden=true;
     this.toggle.classList.toggle('is-active',on); this.toggle.setAttribute('aria-pressed',String(on));
     this.toggle.title=on?'Drawing 툴바 끄기':'Drawing 툴바 켜기'; this.toggle.setAttribute('aria-label',this.toggle.title);
@@ -236,7 +236,7 @@ class CanvasSession {
     if(!fromScope&&this.plugin.keyboard?.handled.has(event))return;
     if(this.view.file!==this.file)return;
     if (!this.isActive() || event.target.closest('input,textarea,select,[contenteditable=true],.modal')) return;
-    if(require('./text-shortcut').handle(this,event))return;
+
     if(require('./keyboard-keys').keyOf(event)===this.plugin.settings.shortcuts.drawing){event.preventDefault();event.stopImmediatePropagation();if(!event.repeat)this.setMode(!this.drawing);return;}
     if(!this.drawing)return;
     if(event.key==='Alt'&&!event.repeat&&this.lastPointer)require('./layer-pick').hover(this,{target:this.lastPointer.target,clientX:this.lastPointer.clientX,clientY:this.lastPointer.clientY,buttons:this.lastPointer.buttons,altKey:true,ctrlKey:event.ctrlKey,metaKey:event.metaKey});
@@ -261,14 +261,14 @@ class CanvasSession {
       else handled=false;if(handled){event.preventDefault();event.stopImmediatePropagation();return;}}
     if(this.drawing&&this.quickTools?.handleKey(event))return;
     if(this.figures?.key(event))return;
-    if(this.tool!=='text'&&this.selection?.key(event))return;
+    if(this.selection?.key(event))return;
     if(this.drawing&&!event.ctrlKey&&!event.metaKey&&!event.altKey){
       if(event.key.toUpperCase()===this.plugin.settings.shortcuts.brush){event.preventDefault();event.stopImmediatePropagation();this.selectTool('brush');return;}
       if(event.key.toUpperCase()===this.plugin.settings.shortcuts.eraser){event.preventDefault();event.stopImmediatePropagation();this.selectTool('eraser');return;}
     }
     if(this.drawing){const match=this.plugin.settings.presets.find(p=>p.shortcut&&p.shortcut===shortcutKey(event));if(match){event.preventDefault();event.stopImmediatePropagation();this.brushUI.choose(match);}
     }
-    if(this.drawing && this.tool!=='text' && (event.ctrlKey || event.metaKey) && event.code==='KeyZ') {
+    if(this.drawing && (event.ctrlKey || event.metaKey) && event.code==='KeyZ') {
       event.preventDefault();event.stopImmediatePropagation();if(!this.nativeDrawingUndoAt)this.undoDrawing(event.shiftKey);
     }
   }
@@ -289,7 +289,6 @@ class CanvasSession {
       this.plugin.sync();return;
     }
     if(this.ready&&this.anchors?.down(event))return;
-    if(this.ready&&!this.drawing&&this.tool==='text'&&!event.target.closest('.cdt-history,.cdt-panel-edge,.cdt-panel,.cdt-layers,.cdt-toolbar,.cdt-color-popup,.canvas-controls,.canvas-menu,.canvas-card-menu')){this.textItems.down(event);return;}
     if(!this.ready || !this.drawing || this.space || this.canvas.isHoldingSpace || this.active || event.pointerType==='touch') return;
     if(event.target.closest('.cdt-history,.cdt-panel-edge,.cdt-anchors,.cdt-selection-bar,.cdt-panel,.cdt-layers,.cdt-save-warning,.cdt-toolbar,.cdt-color-popup,.canvas-controls,.canvas-card-menu,.canvas-menu'))return;
     if(event.button===0&&(event.ctrlKey||event.altKey)&&!(event.ctrlKey&&event.altKey)&&!(event.altKey&&['rectangle','lasso'].includes(this.tool))&&!this.selection.pasting&&require('./layer-pick').down(this,event))return;
@@ -301,7 +300,6 @@ class CanvasSession {
     if(event.ctrlKey&&event.altKey&&event.button===0&&['brush','eraser'].includes(this.tool)){event.preventDefault();event.stopImmediatePropagation();this.sizeDrag={id:event.pointerId,x:event.clientX,y:event.clientY,size:selected(device,this.tool).size};this.host.classList.add('cdt-size-adjusting');this.host.setPointerCapture(event.pointerId);this.updateCursor(event);return;}
     if(event.ctrlKey&&!event.altKey&&!event.metaKey&&event.button===0&&!side&&!back&&this.tool!=='move-layer'){this.ctrlObject=this.tool;this.selectTool('move-layer');}
     if(this.tool==='shape'){this.figures.down(event);return;}
-    if(this.tool==='text'){this.textItems.down(event);return;}
     if(this.selection.pasting||['rectangle','lasso','move-layer'].includes(this.tool)){this.selection.safe(()=>this.selection.down(event));if(this.ctrlObject&&!this.selection.drag){const tool=this.ctrlObject;this.ctrlObject=null;this.selectTool(tool);}return;}
     if(device.inputMode==='pen'&&event.pointerType!=='pen')return;
     if(side&&device.penButton==='pan'){event.preventDefault();event.stopImmediatePropagation();this.penPan={id:event.pointerId,x:event.clientX,y:event.clientY};this.host.setPointerCapture(event.pointerId);return;}
@@ -344,7 +342,7 @@ class CanvasSession {
   pointerMove(event) {
     if(this.colorUI.pick){this.lastPointer=event;this.colorUI.move(event);this.cursor.hidden=true;if(this.mixHint)this.mixHint.hidden=true;return;}
     this.lastPointer=event;if(['rectangle','lasso'].includes(this.tool))require('./layer-pick').hover(this,event);this.anchors?.move(event);if(require('./layer-pick').move(this,event))return;
-    if(this.figures.move(event)||this.textItems.move(event))return;
+    if(this.figures.move(event))return;
     if(this.selection.safe(()=>this.selection.move(event)))return;
     const wantsZoom=event.pointerType==='pen'&&event.ctrlKey&&!!(event.buttons&2);
     if(this.penZoom?.id===event.pointerId){
@@ -380,7 +378,7 @@ class CanvasSession {
     if(this.active?.snap&&event.type!=='pointercancel'&&!(event.pointerType==='pen'&&event.pressure===0))this.snapBrush(event);
     if(this.colorUI.up(event))return;
     if(require('./layer-pick').up(this,event))return;
-    if(this.figures.up(event)||this.textItems.up(event))return;
+    if(this.figures.up(event))return;
     if(this.selection.safe(()=>this.selection.up(event))){if(this.ctrlObject){const tool=this.ctrlObject;this.ctrlObject=null;this.selectTool(tool);}return;}
     if(this.sizeDrag?.id===event.pointerId||this.penPan?.id===event.pointerId||this.penZoom?.id===event.pointerId){if(this.sizeDrag)this.brushUI.save();event.preventDefault();event.stopImmediatePropagation();if(this.host.hasPointerCapture(event.pointerId))this.host.releasePointerCapture(event.pointerId);this.sizeDrag=this.penPan=this.penZoom=null;this.host.classList.remove('cdt-size-adjusting','cdt-pen-zoom');this.updateCursor(event);return;}
     if(!this.active || event.pointerId!==this.active.id)return;
@@ -398,16 +396,16 @@ class CanvasSession {
     if(this.frame || this.disposed)return;
     this.frame=this.win.requestAnimationFrame(()=>{this.frame=null;this.render();});
   }
-  selectTool(tool) {require('./layer-pick').clearHover(this);this.linePreview?.replaceChildren();if(!this.quickTools?.selecting)this.quickTools?.close();this.figures?.confirm();this.textItems?.cancel();if(this.tool==='text')for(const n of this.canvas.nodes.values())if(n.isEditing)n.blur();this.finishStroke();if(['brush','eraser','rectangle','lasso'].includes(tool)&&this.selection?.regions?.length)this.selection.confirm(true);else{this.selection?.confirm(false);this.selection?.end();}this.tool=tool;if(tool==='move-layer'&&this.ready)this.selection.safe(()=>this.selection.prepare(null));if(['brush','eraser'].includes(tool))this.brushUI.render();this.refreshControls();if(!this.temporaryTool&&!this.ctrlObject)this.workspaceUI?.remember();this.scheduleRender();}
+  selectTool(tool) {require('./layer-pick').clearHover(this);this.linePreview?.replaceChildren();if(!this.quickTools?.selecting)this.quickTools?.close();this.figures?.confirm();this.finishStroke();if(['brush','eraser','rectangle','lasso'].includes(tool)&&this.selection?.regions?.length)this.selection.confirm(true);else{this.selection?.confirm(false);this.selection?.end();}this.tool=tool;if(tool==='move-layer'&&this.ready)this.selection.safe(()=>this.selection.prepare(null));if(['brush','eraser'].includes(tool))this.brushUI.render();this.refreshControls();if(!this.temporaryTool&&!this.ctrlObject)this.workspaceUI?.remember();this.scheduleRender();}
   refreshControls() {if(this.mixHint)this.mixHint.hidden=true;
-    this.host.classList.toggle('cdt-text-tool',this.tool==='text');this.figures?.panelRender();
+    this.figures?.panelRender();
     for(const [tool,b]of Object.entries(this.editButtons||{})){const active=this.tool===tool||(tool==='rectangle'&&this.tool==='lasso');b.classList.toggle('is-active',active);b.setAttribute('aria-pressed',String(active));if(tool==='rectangle'){setIcon(b,this.tool==='lasso'?'lasso':'scan');b.title='선택 영역 · '+(this.tool==='lasso'?'올가미':'사각형')+' (W: 전환)';}}if(this.panel)this.panel.hidden=!this.drawing||!['brush','eraser'].includes(this.tool);
     this.host.classList.toggle('cdt-editing',!['brush','eraser'].includes(this.tool));
     this.brushButton.classList.toggle('is-active',this.tool==='brush');this.eraserButton.classList.toggle('is-active',this.tool==='eraser');
     this.brushButton.setAttribute('aria-pressed',String(this.tool==='brush'));this.eraserButton.setAttribute('aria-pressed',String(this.tool==='eraser'));this.colorButton.style.color=this.toolColor();if(this.colorInput)this.colorInput.value=this.toolColor();this.quickTools?.render();this.workspaceUI?.applyLayout();this.brushUI?.scrollSelected();
   }
-  toolColor(){return this.tool==='shape'?this.plugin.settings.shapeStyle.color:this.tool==='text'?(this.textItems?.current?.unknownData.cdtText.color||this.plugin.settings.textStyle.color):this.plugin.settings.color;}
-  setToolColor(color){const q=this.plugin.settings;q.transparentColor=false;q[q.activeColor==='secondary'?'secondaryColor':'mainColor']=color;q.color=color;if(this.tool==='shape'){this.plugin.settings.shapeStyle.color=color;if(this.figures.pending){this.figures.pending.transparentColor=false;this.figures.pending.color=color;this.figures.preview();}this.figures.panelRender();}else if(this.tool==='text'){this.plugin.settings.textStyle.color=color;const n=this.textItems.current;if(n){n.unknownData.cdtText={...n.unknownData.cdtText,color};this.textItems.decorate(n);this.canvas.requestSave();}this.figures.panelRender();}else this.plugin.settings.color=color;for(const s of this.plugin.sessions.values()){s.colorButton.style.color=s.toolColor();s.colorUI?.sync();}this.plugin.saveData(this.plugin.settings);}
+  toolColor(){return this.tool==='shape'?this.plugin.settings.shapeStyle.color:this.plugin.settings.color;}
+  setToolColor(color){const q=this.plugin.settings;q.transparentColor=false;q[q.activeColor==='secondary'?'secondaryColor':'mainColor']=color;q.color=color;if(this.tool==='shape'){this.plugin.settings.shapeStyle.color=color;if(this.figures.pending){this.figures.pending.transparentColor=false;this.figures.pending.color=color;this.figures.preview();}this.figures.panelRender();}else this.plugin.settings.color=color;for(const s of this.plugin.sessions.values()){s.colorButton.style.color=s.toolColor();s.colorUI?.sync();}this.plugin.saveData(this.plugin.settings);}
   updateCursor(event) {
     const hr=this.host.getBoundingClientRect(),target=event.target;
     const allowed=!this.colorUI?.pick&&['brush','eraser'].includes(this.tool)&&this.drawing&&!this.penZoom&&(!!this.sizeDrag||(!this.space&&this.host.contains(target)&&!target.closest('.cdt-history,.cdt-panel-edge,.cdt-toolbar,.cdt-panel,.cdt-layers,.cdt-color-popup,.canvas-controls')));
@@ -446,7 +444,7 @@ class CanvasSession {
     this.figures?.confirm();this.finishStroke();this.plugin.flush();this.disposed=true;
     this.zoomExtension?.();
     for(const off of this.listeners)off();
-    clearTimeout(this.layerTipTimer);this.layerTip?.remove();this.linePreview?.remove();this.visibility?.destroy();this.quickTools?.destroy();this.colorUI?.destroy();this.workspaceUI?.destroy();this.figures?.destroy();this.textItems?.destroy();this.anchors?.destroy();this.brushUI.destroy();this.selection.destroy();this.paper.destroy();
+    clearTimeout(this.layerTipTimer);this.layerTip?.remove();this.linePreview?.remove();this.visibility?.destroy();this.quickTools?.destroy();this.colorUI?.destroy();this.workspaceUI?.destroy();this.figures?.destroy();this.anchors?.destroy();this.brushUI.destroy();this.selection.destroy();this.paper.destroy();
     this.historyUI?.destroy();this.engine?.dispose();this.observer.disconnect();this.resize.disconnect();if(this.frame)this.win.cancelAnimationFrame(this.frame);
     if(this.canvas.getData===this.wrappedGetData)this.canvas.getData=this.originalGetData;
     for(const el of [this.toolbar,this.raster,this.panel,this.layers,this.notice,this.colorPopup,this.cursor,this.mixHint])el.remove();

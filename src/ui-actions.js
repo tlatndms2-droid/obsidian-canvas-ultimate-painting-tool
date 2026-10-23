@@ -44,7 +44,6 @@ function check(s,input,object,key,label){const q=s.plugin.settings;const owner=q
 function handle(s,e){if(!s.drawing)return false;const key=keyOf(e);if(!key)return false;const q=s.plugin.settings;
  for(const id of Object.keys(q.toolShortcuts||{})){
   if(id.startsWith('action:brush:'))s.uiActions.set(id,{run:()=>brush(s,id.slice(13))});
-  if(id.startsWith('action:text:'))s.uiActions.set(id,{run:()=>{const key=id.slice(12);if(!['background','border'].includes(key))return;const n=s.textItems.current,st=n?n.unknownData.cdtText:q.textStyle;st[key]=!st[key];if(n){s.textItems.decorate(n);s.canvas.requestSave();}s.plugin.saveData(q);s.figures.panelRender();}});
   if(id==='action:paper-enabled')s.uiActions.set(id,{run:()=>s.layerUI.change(()=>{s.record.data.paper.enabled=!s.record.data.paper.enabled})});
   if(id==='action:setting:cursorPressure')s.uiActions.set(id,{run:()=>{q.cursorPressure=!q.cursorPressure;s.plugin.saveData(q)}});
   if(id.startsWith('action:quick:'))s.uiActions.set(id,{run:()=>{const k=id.slice(13),list=s.brushUI.quick;q.sharedQuick[s.tool==='eraser'?'eraser':'brush']=list.includes(k)?list.filter(v=>v!==k):[...list,k];s.brushUI.render();s.brushUI.save();}});
