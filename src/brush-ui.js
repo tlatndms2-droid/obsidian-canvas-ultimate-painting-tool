@@ -74,7 +74,8 @@ class BrushUI {
  registerDefaults(p){this.confirm(p.name+'의 현재 설정을 기본값으로 등록할까요? 이전 기본값이 바뀝니다.',()=>{Defaults.register(p);this.save();});}
  resetDefaults(p){this.confirm(p.name+'을 저장한 기본값으로 복원할까요?',()=>{Defaults.reset(p);this.render();this.save();});}
  shortcut(p){shortcutDialog(this.s,'preset:'+p.id,p.name);}
- details(){const m=this.modal('보조 도구 상세 · '+this.p.name,'cdt-details-dialog'),layout=this.el('div','cdt-detail-layout',m.contentEl),nav=this.el('nav','cdt-detail-nav',layout),body=this.el('div','cdt-detail-body',layout);const p=this.p;
+ details(){this.s.toggleBrushDetails();}
+ detailsDialog(){const m=this.modal('보조 도구 상세 · '+this.p.name,'cdt-details-dialog'),layout=this.el('div','cdt-detail-layout',m.contentEl),nav=this.el('nav','cdt-detail-nav',layout),body=this.el('div','cdt-detail-body',layout);const p=this.p;
   const show=key=>{body.replaceChildren();for(const b of nav.children)b.classList.toggle('is-active',b.dataset.tab===key);this.canvas(body,p);this.el('p','cdt-hint',body,'눈 아이콘을 켠 항목은 기본 패널에도 표시됩니다.');const field=k=>this.field(body,k,true);
    if(key==='size'){field('size');this.btn(body,'크기 필압 곡선',()=>this.pressure('size'));}
    if(key==='ink'){field('opacity');this.select(body,'합성 모드',p,'blend',[['source-over','보통'],['multiply','곱하기'],['screen','스크린'],['overlay','오버레이']]);}
@@ -86,7 +87,7 @@ class BrushUI {
   };
   for(const [k,label] of tabs){const b=this.btn(nav,label,()=>show(k));b.dataset.tab=k;}show('size');const foot=this.el('div','cdt-dialog-footer',m.contentEl);this.btn(foot,'현재 값을 기본값으로 저장',()=>this.registerDefaults(p));this.btn(foot,'기본값 복원',()=>{this.confirm(p.name+'을 저장한 기본값으로 복원할까요?',()=>{Defaults.reset(p);this.render();this.save();show('size');});});this.btn(foot,'닫기',()=>m.close());
  }
- pressure(kind){
+ pressure(kind){if(kind!=='global'&&this.s.detailPie?.root){this.s.detailPie.pressureKind=kind;this.s.detailPie.show('pressure');return;}
   const global=kind==='global',p=this.p,label=global?'공통 필압':fields[kind][0]+' 필압';
   const original=clone(global?{enabled:true,min:0,strength:1,curve:this.plugin.settings.globalCurve}:p[kind+'Dynamics']),draft=clone(original);
   const m=this.modal(label+' 설정','cdt-pressure-dialog'),body=m.contentEl;
@@ -103,8 +104,9 @@ class BrushUI {
   const pos=e=>{const r=graph.getBoundingClientRect();return [(e.clientX-r.left)/r.width,1-(e.clientY-r.top)/r.height];};
   graph.onpointerdown=e=>{if(e.button!==0)return;e.preventDefault();graph.focus();const point=pos(e),a=draft.curve;current=a.findIndex(p=>Math.hypot((p[0]-point[0])*graph.clientWidth,(p[1]-point[1])*graph.clientHeight)<12);if(current<0){if(a.length>=16)return;const x=clamp(point[0],.01,.99);if(a.some(p=>Math.abs(p[0]-x)<.01))return;a.push([x,clamp(point[1])]);a.sort((a,b)=>a[0]-b[0]);current=a.findIndex(p=>p[0]===x);}drag={id:e.pointerId,original:clone(a)};graph.setPointerCapture(e.pointerId);redraw();};
   graph.onpointermove=e=>{if(!drag||drag.id!==e.pointerId)return;const a=draft.curve,pt=pos(e);a[current]=[current===0?0:current===a.length-1?1:clamp(pt[0],a[current-1][0]+.005,a[current+1][0]-.005),clamp(pt[1])];redraw();};
-  graph.onpointerup=e=>{if(!drag||drag.id!==e.pointerId)return;const pt=pos(e);if(current>0&&current<draft.curve.length-1&&pt.some(v=>v<-.04||v>1.04)){draft.curve.splice(current,1);current=-1;}graph.releasePointerCapture(e.pointerId);drag=null;redraw();};
+  graph.onpointerup=e=>{if(!drag||drag.id!==e.pointerId)return;drag=null;graph.releasePointerCapture(e.pointerId);redraw();};
   graph.onpointercancel=()=>{if(drag)draft.curve=drag.original;drag=null;redraw();};graph.onkeydown=e=>{if(['Delete','Backspace'].includes(e.key)&&current>0&&current<draft.curve.length-1){e.preventDefault();draft.curve.splice(current,1);current=-1;redraw();}};
+  require('./curve-drag-delete').install(graph,{dragging:()=>drag,index:()=>current,curve:()=>draft.curve,remove:()=>{draft.curve.splice(current,1);current=-1;redraw();}});
   this.el('div','cdt-axis-label',body,'0%　　　　　　　　필압 입력　　　　　　　　100%');this.el('p','cdt-hint',body,'클릭: 점 추가 · 드래그: 곡선 조절 · 밖으로 끌기: 중간점 삭제');
   const footer=this.el('div','cdt-dialog-footer',body);this.btn(footer,'초기화',()=>{draft.curve=linear();redraw();});this.btn(footer,'취소',()=>m.close());this.btn(footer,'확인',()=>{if(global)this.plugin.settings.globalCurve=clone(draft.curve);else p[kind+'Dynamics']=clone(draft);this.render();this.save();m.close();});redraw();
  }

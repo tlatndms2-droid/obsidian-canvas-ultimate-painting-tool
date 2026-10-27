@@ -4,9 +4,15 @@
 class DrawingKeyboard{
  constructor(plugin){this.plugin=plugin;this.handled=new WeakSet();this.scopes=new Map();this.wrap(plugin.app.scope);}
  session(){const s=this.plugin.sessions.get(this.plugin.app.workspace.activeLeaf);return s?.drawing&&s.ready&&!s.disposed?s:null;}
- wrap(scope){if(!scope||this.scopes.has(scope))return;const old=scope.handleKey,owner=this;const wrapped=function(event,...args){const s=owner.plugin.sessions.get(owner.plugin.app.workspace.activeLeaf);if(!s?.drawing&&s?.ready&&owner.plugin.settings.shortcuts.drawing===require('./keyboard-keys').keyOf(event)&&!event.target?.closest?.('input,textarea,select,[contenteditable=true],.modal')){owner.handled.add(event);s.keyDown(event,true);return false;}if(owner.session())return owner.route(event);return old.call(this,event,...args)};this.scopes.set(scope,{old,wrapped});scope.handleKey=wrapped;}
+ wrap(scope){if(!scope||this.scopes.has(scope))return;const old=scope.handleKey,owner=this;const wrapped=function(event,...args){const s=owner.plugin.sessions.get(owner.plugin.app.workspace.activeLeaf);if(!s?.drawing&&s?.ready&&[owner.plugin.settings.shortcuts.drawing,owner.plugin.settings.shortcuts.pie,owner.plugin.settings.shortcuts.colorPie,owner.plugin.settings.shortcuts.eraserPie,owner.plugin.settings.shortcuts.brushDetails].includes(require('./keyboard-keys').keyOf(event))&&!event.target?.closest?.('input,textarea,select,[contenteditable=true],.modal')){owner.handled.add(event);s.keyDown(event,true);return false;}if(owner.session())return owner.route(event);return old.call(this,event,...args)};this.scopes.set(scope,{old,wrapped});scope.handleKey=wrapped;}
  update(){for(const s of this.plugin.sessions.values())this.wrap(s.view.scope);}
  route(e){const s=this.session();if(!s)return;if(this.handled.has(e))return false;this.handled.add(e);
+ if(require('./pie-input').picker(s,e))return false;
+ // A popup owns its close shortcut even while its number/HEX field has focus.
+ // Other dialogs retain the existing input and shortcut-capture protection.
+ for(const pie of [s.detailPie,s.brushPie,s.eraserPie,s.quickTools?.pie,s.colorUI?.pie]){
+  if(pie?.root?.contains(e.target)&&pie.key(e))return false;
+ }
  const input=e.target?.closest?.('input,textarea,select,[contenteditable=true]'),modal=e.target?.closest?.('.modal');
  if(input?.getAttribute('aria-label')==='단축키 입력')return true;
  if(input||modal){const edit=(e.ctrlKey||e.metaKey)&&!e.altKey&&['KeyA','KeyC','KeyV','KeyX','KeyZ','KeyY'].includes(e.code);if(edit||(!e.ctrlKey&&!e.metaKey&&!e.altKey))return true;e.preventDefault();return false;}

@@ -32,7 +32,10 @@ module.exports = class CanvasDrawingPlugin extends Plugin {
     this.sessions = new Map();this.keyboard=new (require('./drawing-keyboard').DrawingKeyboard)(this);
     this.settings = {size:12, color:'#b6a0e2', opacity:1, density:1, hardness:1, mix:false, paintAmount:.5, colorStretch:.5, eraserSize:32, ...unpackMaterials(await this.loadData() || {})};
     upgrade(this.settings);upgradeWorkspaces(this.settings);require('./navigation-shortcuts').ensure(this.settings);this.settings.historyLimit=Number.isSafeInteger(this.settings.historyLimit)&&this.settings.historyLimit>0?this.settings.historyLimit:50;this.addSettingTab(new HistorySettings(this.app,this));
-    if(require('./default-brushes').install(this.settings))await this.saveData(this.settings);
+    if(this.settings.pieSize===undefined){this.settings.pieSize=require('./pie-settings').size(this.settings);await this.saveData(this.settings);}
+    const installedDefaults=require('./default-brushes').install(this.settings);
+    const enabledPressure=require('./pressure-defaults').enable(this.settings);
+    if(installedDefaults||enabledPressure)await this.saveData(this.settings);
     this.registerEvent(this.app.workspace.on('layout-change', () => this.sync()));
     this.registerEvent(this.app.workspace.on('active-leaf-change', () => {this.settleInactive();this.flush(); this.sync();queueMicrotask(()=>this.keyboard?.update());}));
     this.registerEvent(this.app.workspace.on('file-open', () => {this.settleInactive();this.flush(); this.sync();}));
@@ -43,6 +46,12 @@ module.exports = class CanvasDrawingPlugin extends Plugin {
       this.flush();
     }));
     this.registerInterval(window.setInterval(() => this.sync(), 500));
+    if(!this.settings.brushPieKeysVersion){this.settings.shortcuts.brush='B';this.settings.shortcuts.eraser='E';this.settings.brushPieKeysVersion=1;await this.saveData(this.settings);}
+    this.addCommand({id:'toggle-brush-pie',name:'브러시 파이 메뉴 열기 / 닫기',checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready)return false;if(!checking)s.toggleBrushPie();return true;}});
+    this.settings.shortcuts.pie??='Ctrl+Alt+Q';this.settings.shortcuts.colorPie??='Ctrl+Alt+C';this.settings.shortcuts.eraserPie??='Ctrl+Alt+E';this.settings.shortcuts.brushDetails??='Ctrl+Alt+B';
+    for(const [id,name,action]of [['toggle-eraser-pie','지우개 파이 메뉴 열기 / 닫기',s=>s.toggleEraserPie()],['toggle-brush-details','브러시 상세 파이 메뉴 열기 / 닫기',s=>s.toggleBrushDetails()]])this.addCommand({id,name,checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready)return false;if(!checking)action(s);return true;}});
+    this.addCommand({id:'toggle-color-pie',name:'색상 파이 메뉴 열기 / 닫기',checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready)return false;if(!checking)s.colorUI.toggle();return true;}});
+    this.addCommand({id:'toggle-pie',name:'지정 도구 파이 메뉴 열기 / 닫기',checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready)return false;if(!checking)s.quickTools.toggle();return true;}});
     this.addCommand({id:'toggle-drawing',name:'Drawing 툴바 켜기 / 끄기',checkCallback:checking=>{
       const session = this.sessions.get(this.app.workspace.activeLeaf);
       if (!session) return false;
@@ -165,8 +174,8 @@ class CanvasSession {
     this.toggle=this.button(this.toolbar,'pen-tool','Drawing 툴바 켜기',()=>this.setMode(!this.drawing));
     this.toggle.classList.add('cdt-toggle');
     this.tools=this.element('div','cdt-tools',this.toolbar);this.tools.hidden=true;
-    this.brushButton=this.button(this.tools,'paintbrush','브러시 (B)',()=>this.selectTool('brush'));
-    this.eraserButton=this.button(this.tools,'eraser','지우개 (E)',()=>this.selectTool('eraser'));
+    this.brushButton=this.button(this.tools,'paintbrush','브러시 (B)',()=>this.openToolPanel('brush'));
+    this.eraserButton=this.button(this.tools,'eraser','지우개 (E)',()=>this.openToolPanel('eraser'));
     this.colorButton=this.button(this.tools,'palette','색 선택',()=>this.colorUI.toggle());
     this.colorButton.remove();
     this.editButtons={};for(const [tool,icon,label]of [['rectangle','scan','선택 영역 (W로 방식 전환)']])this.editButtons[tool]=this.button(this.tools,icon,label,()=>this.selectTool(this.plugin.settings.selectionMethod||'rectangle'));
@@ -178,7 +187,7 @@ class CanvasSession {
     this.panel=this.element('aside','cdt-panel',this.host);
     this.brushUI=new BrushUI(this);this.brushUI.render();
     this.colorPopup=this.element('div','cdt-color-popup',this.host);this.colorPopup.hidden=true;
-    this.colorUI=new ColorUI(this);
+    this.colorUI=new ColorUI(this);if(!this.host.classList.contains('mdt-host')){this.tools.append(this.colorButton);this.colorButton.setAttribute('aria-label','색상 파이 메뉴');this.colorButton.title='색상 파이 메뉴 · Ctrl+Alt+C';this.colorButton.oncontextmenu=e=>{e.preventDefault();const {Menu}=require('obsidian'),m=new Menu();m.addItem(i=>i.setTitle('기존 색상 패널').onClick(()=>this.colorUI.togglePanel()));m.addItem(i=>i.setTitle('색상 파이 메뉴 단축키').onClick(()=>require('./tool-shortcuts').shortcutDialog(this,'panel:colorPie','색상 파이 메뉴')));m.showAtMouseEvent(e);};}
     this.refreshControls();
     this.layers=this.element('aside','cdt-layers',this.host);
     this.layerUI=new LayerUI(this);this.layerUI.render();
@@ -220,7 +229,13 @@ class CanvasSession {
     this.notice.hidden=!error; this.statusText.textContent=error ? `Drawing 저장 보호: ${error}` : '';
     this.retry.hidden=!!this.loadError;
   }
+  openToolPanel(tool){this.selectTool(tool);this.plugin.settings.contextCollapsed=false;if('mdPanel'in this)this.mdPanel='brush';this.workspaceUI.applyLayout();this.applyMdLayout?.();this.plugin.saveData(this.plugin.settings);}
+  toggleBrushPie(){this.brushPie??=new (require('./pie-menu').PieMenu)(this.quickTools,'brush');this.brushPie.toggle();}
+  toggleEraserPie(){this.eraserPie??=new (require('./pie-menu').PieMenu)(this.quickTools,'eraser');this.eraserPie.toggle();}
+  toggleBrushDetails(){this.detailPie??=new (require('./brush-detail-pie').BrushDetailPie)(this);this.detailPie.toggle();}
   setMode(on) {
+    this.clearCtrlPick();
+    this.brushPie?.close();this.eraserPie?.close();this.detailPie?.close();this.quickTools?.pie?.close();
     require('./navigation-shortcuts').reset(this);
     if(this.view.file!==this.file) {this.plugin.sync();return;}
     if (on && !this.ready) {new Notice(this.loadError || '그림 데이터를 준비하고 있습니다.');return;}
@@ -232,13 +247,20 @@ class CanvasSession {
     this.host.dispatchEvent(new this.win.CustomEvent('canvas-drawing-tool-bar:mode-change',{bubbles:true,detail:{drawing:on}}));
     this.plugin.keyboard?.update();this.visibility?.apply();this.refreshControls();if(on&&this.plugin.settings.colorCollapsed===false)this.colorUI?.open();this.scheduleRender();
   }
-  settle(blurText=true){require('./navigation-shortcuts').reset(this);require('./layer-pick').clearHover(this);this.figures?.confirm();this.selection?.confirm(false);this.selection?.end();this.restoreCtrlObject();this.finishStroke();this.colorUI?.close();if(blurText)for(const n of this.canvas.nodes.values())if(n.isEditing)n.blur();}
+  settle(blurText=true){this.clearCtrlPick();this.brushPie?.close();this.eraserPie?.close();this.detailPie?.close();this.quickTools?.pie?.close();require('./navigation-shortcuts').reset(this);require('./layer-pick').clearHover(this);this.figures?.confirm();this.selection?.confirm(false);this.selection?.end();this.restoreCtrlObject();this.finishStroke();this.colorUI?.close();if(blurText)for(const n of this.canvas.nodes.values())if(n.isEditing)n.blur();}
   isActive() { return this.plugin.app.workspace.activeLeaf?.view===this.view; }
   keyDown(event,fromScope=false) {
     if(!fromScope&&this.plugin.keyboard?.handled.has(event))return;
     if(this.view.file!==this.file)return;
+    if(this.isActive()&&require('./pie-input').picker(this,event))return;
+    if(this.isActive()&&(this.brushPie?.key(event)||this.detailPie?.key(event)||this.eraserPie?.key(event)))return;
+    if(this.isActive()&&this.colorUI?.pie?.key(event))return;
+    if(this.isActive()&&this.quickTools?.pie?.key(event))return;
     if (!this.isActive() || event.target.closest('input,textarea,select,[contenteditable=true],.modal')) return;
 
+    for(const [key,action]of [['eraserPie',()=>this.toggleEraserPie()],['brushDetails',()=>this.toggleBrushDetails()]])if(require('./keyboard-keys').keyOf(event)===this.plugin.settings.shortcuts[key]){event.preventDefault();event.stopImmediatePropagation();if(!event.repeat)action();return;}
+    if(require('./keyboard-keys').keyOf(event)===this.plugin.settings.shortcuts.colorPie){event.preventDefault();event.stopImmediatePropagation();if(!event.repeat)this.colorUI.toggle();return;}
+    if(require('./keyboard-keys').keyOf(event)===this.plugin.settings.shortcuts.pie){event.preventDefault();event.stopImmediatePropagation();if(!event.repeat)this.quickTools.toggle();return;}
     if(require('./keyboard-keys').keyOf(event)===this.plugin.settings.shortcuts.drawing){event.preventDefault();event.stopImmediatePropagation();if(!event.repeat)this.setMode(!this.drawing);return;}
     if(!this.drawing)return;
     if(event.key==='Alt'&&!event.repeat&&this.lastPointer)require('./layer-pick').hover(this,{target:this.lastPointer.target,clientX:this.lastPointer.clientX,clientY:this.lastPointer.clientY,buttons:this.lastPointer.buttons,altKey:true,ctrlKey:event.ctrlKey,metaKey:event.metaKey});
@@ -275,6 +297,7 @@ class CanvasSession {
     }
   }
   restoreCtrlObject(){if(!this.ctrlObject)return;const tool=this.ctrlObject;this.ctrlObject=null;this.selectTool(tool);}
+  clearCtrlPick(){const p=this.ctrlPick;this.ctrlPick=null;if(p&&this.host.hasPointerCapture(p.id))this.host.releasePointerCapture(p.id);}
   restoreTemporaryTool(){if(!this.temporaryTool)return;const tool=this.temporaryTool;this.temporaryTool=null;this.selectTool(tool);}
   toggleTransparentColor(){const q=this.plugin.settings;q.transparentColor=!q.transparentColor;if(this.figures.pending){this.figures.pending.transparentColor=q.transparentColor;this.figures.preview();}this.colorUI.sync();if(this.lastPointer)this.updateCursor(this.lastPointer);this.plugin.saveData(q);}
   selectColorSlot(slot){const q=this.plugin.settings;q.transparentColor=false;q.activeColor=slot;q.color=slot==='main'?q.mainColor:q.secondaryColor;if(this.tool==='shape'){q.shapeStyle.color=q.color;if(this.figures.pending){this.figures.pending.transparentColor=false;this.figures.pending.color=q.color;this.figures.preview();}}this.colorUI.sync();this.refreshControls();this.plugin.saveData(q);}
@@ -337,15 +360,13 @@ class CanvasSession {
   }
   previewLine(e){if(!this.linePreview){this.linePreview=this.doc.createElementNS('http://www.w3.org/2000/svg','svg');this.linePreview.classList.add('cdt-straight-preview');this.host.append(this.linePreview);}this.linePreview.replaceChildren();if(!e.shiftKey||!this.drawing||this.space||!this.host.contains(e.target)||this.active||!['brush','eraser'].includes(this.tool)||this.lineOrigin?.tool!==this.tool||e.target.closest('.cdt-history,.cdt-panel-edge,.cdt-panel,.cdt-layers,.cdt-toolbar'))return;const l=this.record.data.layers.find(l=>l.id===this.lineOrigin.layerId);if(!l||l.id!==this.record.data.selectedLayers[0])return;const hr=this.host.getBoundingClientRect(),cr=this.canvas.canvasEl.getBoundingClientRect(),scale=cr.width/this.canvas.canvasEl.offsetWidth,a=this.lineOrigin.point,shape=this.doc.createElementNS(this.linePreview.namespaceURI,'line');for(const[k,v]of Object.entries({x1:a[0]*scale+(l.offset?.x||0)*scale+cr.left-hr.left,y1:a[1]*scale+(l.offset?.y||0)*scale+cr.top-hr.top,x2:e.clientX-hr.left,y2:e.clientY-hr.top,stroke:this.tool==='eraser'||this.plugin.settings.transparentColor?'#888':this.plugin.settings.color,'stroke-width':Math.max(1,selected(this.plugin.settings,this.tool).size*scale),'stroke-opacity':.3,'stroke-linecap':'round'}))shape.setAttribute(k,v);if(this.tool==='brush'&&this.plugin.settings.brushSnapEnabled){const end=require('./brush-snap').point(a,this.brushPoint(e,l),this.plugin.settings.brushSnapAngle);shape.setAttribute('x2',(end[0]+(l.offset?.x||0))*scale+cr.left-hr.left);shape.setAttribute('y2',(end[1]+(l.offset?.y||0))*scale+cr.top-hr.top);}if(this.tool==='eraser'||this.plugin.settings.transparentColor){const x=Number(shape.getAttribute('x1')),y=Number(shape.getAttribute('y1')),dx=Number(shape.getAttribute('x2'))-x,dy=Number(shape.getAttribute('y2'))-y,w=Number(shape.getAttribute('stroke-width')),rect=this.doc.createElementNS(this.linePreview.namespaceURI,'rect');for(const[k,v]of Object.entries({x:-w/2,y:-w/2,width:Math.hypot(dx,dy)+w,height:w,rx:w/2,fill:'none',stroke:'#777','stroke-width':1,'stroke-dasharray':'4 3',transform:'translate('+x+' '+y+') rotate('+(Math.atan2(dy,dx)*180/Math.PI)+')'}))rect.setAttribute(k,v);this.linePreview.append(rect);}else this.linePreview.append(shape);}
   startPenZoom(event) {
-    event.preventDefault();event.stopImmediatePropagation();this.finishStroke();
+    event.preventDefault();event.stopImmediatePropagation();
+    this.clearCtrlPick();if(this.selection.drag)this.selection.end();this.restoreCtrlObject();this.finishStroke();
     this.penZoom={id:event.pointerId,x:event.clientX,zoom:this.canvas.tZoom,center:this.canvas.domPosFromEvt(event)};
     this.host.setPointerCapture(event.pointerId);this.host.classList.add('cdt-pen-zoom');this.cursor.hidden=true;if(this.mixHint)this.mixHint.hidden=true;
   }
   pointerMove(event) {
     if(this.colorUI.pick){this.lastPointer=event;this.colorUI.move(event);this.cursor.hidden=true;if(this.mixHint)this.mixHint.hidden=true;return;}
-    this.lastPointer=event;if(['rectangle','lasso'].includes(this.tool))require('./layer-pick').hover(this,event);this.anchors?.move(event);if(require('./layer-pick').move(this,event))return;
-    if(this.figures.move(event))return;
-    if(this.selection.safe(()=>this.selection.move(event)))return;
     const wantsZoom=event.pointerType==='pen'&&event.ctrlKey&&!!(event.buttons&2);
     if(this.penZoom?.id===event.pointerId){
       event.preventDefault();event.stopImmediatePropagation();this.cursor.hidden=true;if(this.mixHint)this.mixHint.hidden=true;
@@ -353,7 +374,10 @@ class CanvasSession {
       const target=this.penZoom.zoom+(event.clientX-this.penZoom.x)/200;
       this.canvas.zoomBy(target-this.canvas.tZoom,this.penZoom.center);this.canvas.finishViewportAnimation=true;return;
     }
-    if(wantsZoom&&this.drawing&&this.ready&&!this.space&&!this.sizeDrag&&this.view.file===this.file&&!event.target.closest('.cdt-history,.cdt-panel-edge,.cdt-anchors,.cdt-panel,.cdt-layers,.cdt-toolbar,.cdt-color-popup,.canvas-controls,.canvas-card-menu,.canvas-menu')){this.startPenZoom(event);return;}
+    if(wantsZoom&&this.drawing&&this.ready&&this.isActive()&&this.host.contains(event.target)&&!this.space&&!this.sizeDrag&&this.view.file===this.file&&!event.target.closest('.cdt-history,.cdt-panel-edge,.cdt-anchors,.cdt-panel,.cdt-layers,.cdt-toolbar,.cdt-color-popup,.canvas-controls,.canvas-card-menu,.canvas-menu')){this.startPenZoom(event);return;}
+    this.lastPointer=event;if(['rectangle','lasso'].includes(this.tool))require('./layer-pick').hover(this,event);this.anchors?.move(event);if(require('./layer-pick').move(this,event))return;
+    if(this.figures.move(event))return;
+    if(this.selection.safe(()=>this.selection.move(event)))return;
     this.updateCursor(event);this.previewLine(event);
     if(this.active?.snap){this.snapBrush(event);return;}
     if(this.active?.straight)return;
@@ -447,12 +471,15 @@ class CanvasSession {
     this.zoomExtension?.();
     for(const off of this.listeners)off();
     clearTimeout(this.layerTipTimer);this.layerTip?.remove();this.linePreview?.remove();this.visibility?.destroy();this.quickTools?.destroy();this.colorUI?.destroy();this.workspaceUI?.destroy();this.figures?.destroy();this.anchors?.destroy();this.brushUI.destroy();this.selection.destroy();this.paper.destroy();
-    this.historyUI?.destroy();this.engine?.dispose();this.observer.disconnect();this.resize.disconnect();if(this.frame)this.win.cancelAnimationFrame(this.frame);
+    this.brushPie?.close();this.eraserPie?.close();this.detailPie?.close();this.historyUI?.destroy();this.engine?.dispose?.();this.observer.disconnect();this.resize.disconnect();if(this.frame)this.win.cancelAnimationFrame(this.frame);
     if(this.canvas.getData===this.wrappedGetData)this.canvas.getData=this.originalGetData;
     for(const el of [this.toolbar,this.raster,this.panel,this.layers,this.notice,this.colorPopup,this.cursor,this.mixHint])el.remove();
     this.host.classList.remove('cdt-drawing','cdt-editing','cdt-session');
   }
 }
+
+// Markdown adapters reuse the same tools and renderer without creating a Canvas file.
+module.exports.CanvasSession = CanvasSession;
 
 
 

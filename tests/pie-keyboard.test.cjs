@@ -1,0 +1,5 @@
+const {test}=require('node:test'),assert=require('node:assert/strict');
+const {DrawingKeyboard}=require('../src/drawing-keyboard');
+function setup(owned){let calls=0;const input={getAttribute:()=>null},target={closest:selector=>selector.includes('input')?input:null};const pie={root:{contains:v=>owned&&v===target},key:e=>{calls++;return e.code==='KeyB';}};const route=Object.create(DrawingKeyboard.prototype);route.handled=new WeakSet();route.session=()=>({detailPie:pie,keyDown(){throw Error('should not reach drawing input');}});const event={target,code:'KeyB',ctrlKey:true,altKey:true,preventDefault(){}};return{route,event,calls:()=>calls};}
+test('popup close shortcut reaches its handler from a focused number field once',()=>{const s=setup(true);assert.equal(s.route.route(s.event),false);assert.equal(s.calls(),1);assert.equal(s.route.route(s.event),false);assert.equal(s.calls(),1);});
+test('unrelated input retains its protection and does not invoke pie handlers',()=>{const s=setup(false);assert.equal(s.route.route(s.event),false);assert.equal(s.calls(),0);});
