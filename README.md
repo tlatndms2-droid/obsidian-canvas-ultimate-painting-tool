@@ -1,4 +1,8 @@
-# Canvas Drawing Tool Bar
+# 옵시디언 드로잉 툴바
+
+기존 **Canvas Drawing Tool Bar**의 새 이름입니다. 저장소 주소와 플러그인 ID는 유지하므로 기존 설정과 Canvas 그림을 그대로 이어서 사용합니다.
+
+이 저장소에서 **본체 1.0.19**와 **MD 추가 기능 0.0.23**을 함께 배포합니다. 본체는 아래 BRAT 주소로 업데이트하고, Markdown 필기는 최신 Release의 `markdown-drawing-0.0.23.zip`을 함께 설치하세요. [MD 설치·사용 설명](markdown/README.md)을 참고하세요. 두 플러그인 모두 활성화해야 MD에서 그릴 수 있습니다.
 
 Obsidian Canvas에서 브러시·질감·도형으로 그리고 레이어와 실행 취소 기록을 관리하는 데스크톱 플러그인입니다.
 

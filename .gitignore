@@ -4,3 +4,6 @@ poc/abr-tools/npm.tgz
 poc/abr-tools/reader.cjs
 poc/evidence/
 site/
+dist/
+dist-markdown/
+node_modules/

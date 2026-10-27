@@ -1,0 +1,34 @@
+/* Drawing Tool Bar supplies shared styles. These rules affect Markdown only. */
+.mdt-host{position:absolute;inset:0;isolation:isolate;pointer-events:none;z-index:10;overflow:hidden;}
+.cm-editor:has(>.mdt-host)>.cm-scroller{padding-inline-start:60px!important;}
+/* Windows Ink otherwise takes over a pen drag as native panning and sends
+   pointercancel, even when pointerdown was prevented and captured. */
+.mdt-host.cdt-drawing{pointer-events:auto;touch-action:none;}
+.mdt-host .cdt-toolbar,.mdt-host .cdt-panel,.mdt-host .cdt-layers,.mdt-host .cdt-color-popup,.mdt-host .mdt-panel-close,.mdt-host .cdt-selection-bar{pointer-events:auto;}
+.mdt-host .cdt-toolbar{position:absolute!important;top:58px!important;right:auto!important;left:8px!important;bottom:auto!important;height:auto!important;width:42px!important;max-height:calc(100% - 70px);overflow:auto;z-index:1005;box-shadow:var(--shadow-s);border-radius:10px;}
+.mdt-host .cdt-toolbar .cdt-workspace-footer{display:none!important;}
+.mdt-host .cdt-toolbar button{width:30px;height:32px;min-height:30px;}
+.mdt-host .cdt-tools{display:flex;flex-direction:column;gap:3px;}
+.mdt-host .cdt-tools[hidden],.mdt-host [hidden]{display:none!important;}
+.mdt-host .cdt-panel,.mdt-host .cdt-layers{z-index:1006;overflow:auto;padding:10px;border-radius:9px;background:var(--background-primary);box-shadow:var(--shadow-s);}
+.mdt-host .cdt-panel-heading{padding-right:24px;}
+.mdt-host .cdt-preset-list{max-height:190px!important;}
+.mdt-host .cdt-panel-edge{display:none!important;}
+.mdt-host .cdt-history{display:none!important;}
+.mdt-host .mdt-panel-close{position:absolute;z-index:1007;width:24px;height:24px;padding:3px;border:0;box-shadow:none;}
+.mdt-host .cdt-raster{z-index:1000;}
+.mdt-host .cdt-color-popup{max-width:calc(100% - 72px);max-height:calc(100% - 70px);overflow:auto;left:58px!important;top:58px!important;right:auto!important;}
+.mdt-host .cdt-selection-bar{max-width:calc(100% - 65px);flex-wrap:wrap;}
+.mdt-host .cdt-toggle.is-active{background:var(--interactive-accent);color:var(--text-on-accent);}
+.mdt-host .mdt-zoom-reset{position:absolute;top:12px;right:14px;z-index:1005;pointer-events:auto;width:64px!important;min-width:62px;height:28px;border-radius:16px;color:var(--interactive-accent);font-size:12px;}
+.mdt-host.mdt-panning{cursor:grabbing!important;}
+.mdt-host.mdt-zooming{cursor:ew-resize!important;}
+.mdt-host .mdt-navigator{left:auto!important;top:auto!important;right:14px!important;bottom:14px;width:min(300px,calc(100% - 70px))!important;padding:6px!important;border:1px solid color-mix(in srgb,var(--background-modifier-border) 65%,transparent);border-radius:5px;background:color-mix(in srgb,var(--background-primary) 88%,transparent);box-shadow:none;z-index:1004;overflow:visible;resize:none;font-size:var(--font-text-size);}
+.mdt-nav-area{position:relative;width:100%;height:180px;overflow:hidden;cursor:grab;touch-action:none;}
+.mdt-nav-area.is-dragging{cursor:grabbing;}
+.mdt-nav-scene{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none;}
+.mdt-nav-text{position:absolute!important;left:0;top:0;pointer-events:none;user-select:none;caret-color:transparent;min-width:0!important;max-width:none!important;}
+.mdt-nav-text .cm-line{pointer-events:none;}
+.mdt-nav-ink{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;}
+.mdt-nav-viewport{position:absolute;box-sizing:border-box;border:1.5px solid var(--interactive-accent);background:color-mix(in srgb,var(--interactive-accent) 10%,transparent);pointer-events:none;z-index:2;}
+.mdt-host .mdt-nav-fit{position:absolute;right:-4px;top:-20px;width:24px;height:24px;min-width:24px;min-height:24px;padding:3px;z-index:3;background:var(--background-primary);border:1px solid var(--background-modifier-border);border-radius:5px;}
