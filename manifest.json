@@ -1,9 +1,9 @@
 {
   "id": "canvas-drawing-tool-bar",
   "name": "옵시디언 드로잉 툴바",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "minAppVersion": "1.12.7",
-  "description": "Draw on Obsidian Canvas with brush presets, pressure curves and persistent drawing storage.",
+  "description": "Draw on Canvas and Markdown with shared brushes, pressure curves and persistent drawing storage.",
   "author": "tlatndms2-droid",
   "isDesktopOnly": true
 }

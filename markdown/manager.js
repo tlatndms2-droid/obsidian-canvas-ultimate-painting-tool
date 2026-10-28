@@ -24,7 +24,7 @@ module.exports=class MdDrawingPlugin extends Plugin {
   command('toggle-navigator','네비게이터 열기 / 닫기','N',s=>s.navigator.toggle());
   this.app.workspace.onLayoutReady(()=>this.sync());
  }
- connect(){const drawing=this.app.plugins.getPlugin('canvas-drawing-tool-bar');if(!drawing?.store)return false;
+ connect(){const drawing=this.integratedDrawing||this.app.plugins.getPlugin('canvas-drawing-tool-bar');if(!drawing?.store)return false;
   if(this.drawing===drawing)return true;
   this.drawing=drawing;const owner=this;
   this.bridge={get settings(){return drawing.settings},get sessions(){return new Map([...drawing.sessions,...owner.sessions])},app:this.app,store:drawing.store,
@@ -36,7 +36,7 @@ module.exports=class MdDrawingPlugin extends Plugin {
  sync(){if(this.stopping)return;
   for(const s of this.sessions.values())if(!s.isActive())s.settle(false);
   const leaves=this.app.workspace.getLeavesOfType('markdown'),live=new Set([...this.editors].map(e=>e.view));
-  for(const [leaf,s]of this.sessions)if(!leaves.includes(leaf)||leaf.view.editor?.cm!==s.cm||leaf.view.file!==s.file||!live.has(s.cm)||!s.host.isConnected||!this.app.plugins.getPlugin('canvas-drawing-tool-bar')){s.destroy();this.sessions.delete(leaf);}
+  for(const [leaf,s]of this.sessions)if(!leaves.includes(leaf)||leaf.view.editor?.cm!==s.cm||leaf.view.file!==s.file||!live.has(s.cm)||!s.host.isConnected||(!this.integratedDrawing&&!this.app.plugins.getPlugin('canvas-drawing-tool-bar'))){s.destroy();this.sessions.delete(leaf);}
   if(!this.connect())return;
   for(const leaf of leaves){const cm=leaf.view.editor?.cm;if(!leaf.view.file||!cm||!live.has(cm)||this.sessions.has(leaf)||this.pending.has(cm))continue;
    this.pending.add(cm);let s;

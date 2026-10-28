@@ -2,7 +2,7 @@
 
 기존 **Canvas Drawing Tool Bar**의 새 이름입니다. 저장소 주소와 플러그인 ID는 유지하므로 기존 설정과 Canvas 그림을 그대로 이어서 사용합니다.
 
-이 저장소에서 **본체 1.0.19**와 **MD 추가 기능 0.0.23**을 함께 배포합니다. 본체는 아래 BRAT 주소로 업데이트하고, Markdown 필기는 최신 Release의 `markdown-drawing-0.0.23.zip`을 함께 설치하세요. [MD 설치·사용 설명](markdown/README.md)을 참고하세요. 두 플러그인 모두 활성화해야 MD에서 그릴 수 있습니다.
+**1.0.20**부터 Canvas와 Markdown 필기를 본체 하나에 통합합니다. 별도 MD ZIP 설치가 필요하지 않습니다. 기존 MD 추가 기능의 필기 연결 정보는 보존하여 옮기고, 중복 실행을 막기 위해 기존 MD 추가 기능을 끕니다. [MD 사용 설명](markdown/README.md)을 참고하세요.
 
 Obsidian Canvas에서 브러시·질감·도형으로 그리고 레이어와 실행 취소 기록을 관리하는 데스크톱 플러그인입니다.
 
@@ -15,7 +15,7 @@ Obsidian Canvas에서 브러시·질감·도형으로 그리고 레이어와 실
 
    `https://github.com/tlatndms2-droid/obsidian-canvas-ultimate-painting-tool`
 
-3. 설치 후 커뮤니티 플러그인에서 **Canvas Drawing Tool Bar**를 켭니다.
+3. 설치 후 커뮤니티 플러그인에서 **옵시디언 드로잉 툴바**를 켭니다.
 4. Canvas를 열고 왼쪽 펜 아이콘을 누릅니다.
 
 최소 Obsidian 버전: **1.12.7**. Windows/데스크톱용입니다. 최신 릴리스는 [Releases](https://github.com/tlatndms2-droid/obsidian-canvas-ultimate-painting-tool/releases)에서 확인할 수 있습니다.
@@ -40,7 +40,7 @@ Obsidian Canvas에서 브러시·질감·도형으로 그리고 레이어와 실
 
 ## 개발
 
-Node.js에서 별도 패키지 설치 없이 실행합니다.
+Node.js에서 개발 의존성(esbuild)을 설치한 뒤 실행합니다.
 
 ```sh
 node --test tests/*.test.cjs

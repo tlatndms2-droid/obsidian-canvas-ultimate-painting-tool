@@ -58,6 +58,7 @@ module.exports = class CanvasDrawingPlugin extends Plugin {
       if (!checking) session.setMode(!session.drawing);
       return true;
     }});
+    await require('../markdown/integrated').start(this);
     this.app.workspace.onLayoutReady(() => this.sync());
   }
   settleInactive(){for(const s of this.sessions.values())if(!s.isActive())s.settle();}
@@ -93,6 +94,7 @@ module.exports = class CanvasDrawingPlugin extends Plugin {
     for (const s of this.sessions.values()){s.showStatus();s.historyUI?.updateBusy();}return ok;
   }
   onunload() {
+    require('../markdown/integrated').stop(this);
     for (const s of this.sessions.values()) s.destroy();
     this.sessions.clear();this.keyboard?.destroy();clearTimeout(this.saveTimer);const saved=this.store.close();if(!saved){this.app[Symbol.for('canvas-drawing-unsaved')]=new Map([...this.store.records].filter(([,r])=>r.dirty).map(([id,r])=>[id,{data:r.data,error:r.error}]));new Notice('저장하지 못한 그림을 메모리에 보관했습니다. 플러그인을 다시 켜서 저장을 재시도해주세요.');}
   }
@@ -275,7 +277,7 @@ class CanvasSession {
       if(k===keys.drawing){if(!event.repeat)this.setMode(!this.drawing);}
       else if(k===keys.color){if(!event.repeat)this.colorUI.toggle();}
       else if(k===keys.layers){if(!event.repeat)this.workspaceUI.toggle('layersCollapsed');}
-      else if(this.drawing&&k===keys.swap){if(!event.repeat)this.selectColorSlot(q.activeColor==='main'?'secondary':'main');}
+      else if(this.drawing&&k===keys.swap){if(!event.repeat)this.selectColorSlot(this.colorSettings().activeColor==='main'?'secondary':'main');}
       else if(this.drawing&&k===keys.transparent){if(!event.repeat){this.toggleTransparentColor();}}
       else if(this.drawing&&k===keys.mix){if(!event.repeat){const p=selected(q,'brush');p.mix=!p.mix;this.brushUI.save();if(this.tool==='brush')this.brushUI.render();}}
       else if(this.drawing&&k===keys.selection){if(!event.repeat){q.selectionMethod=['rectangle','lasso'].includes(this.tool)?(this.tool==='rectangle'?'lasso':'rectangle'):(q.selectionMethod||'rectangle');this.selectTool(q.selectionMethod);}}
@@ -300,7 +302,7 @@ class CanvasSession {
   clearCtrlPick(){const p=this.ctrlPick;this.ctrlPick=null;if(p&&this.host.hasPointerCapture(p.id))this.host.releasePointerCapture(p.id);}
   restoreTemporaryTool(){if(!this.temporaryTool)return;const tool=this.temporaryTool;this.temporaryTool=null;this.selectTool(tool);}
   toggleTransparentColor(){const q=this.plugin.settings;q.transparentColor=!q.transparentColor;if(this.figures.pending){this.figures.pending.transparentColor=q.transparentColor;this.figures.preview();}this.colorUI.sync();if(this.lastPointer)this.updateCursor(this.lastPointer);this.plugin.saveData(q);}
-  selectColorSlot(slot){const q=this.plugin.settings;q.transparentColor=false;q.activeColor=slot;q.color=slot==='main'?q.mainColor:q.secondaryColor;if(this.tool==='shape'){q.shapeStyle.color=q.color;if(this.figures.pending){this.figures.pending.transparentColor=false;this.figures.pending.color=q.color;this.figures.preview();}}this.colorUI.sync();this.refreshControls();this.plugin.saveData(q);}
+  selectColorSlot(slot){const q=this.plugin.settings;q.transparentColor=false;const colors=this.colorSettings();colors.activeColor=slot;const color=slot==='main'?colors.mainColor:colors.secondaryColor;if(this.tool==='shape'){q.shapeStyle.color=color;if(this.figures.pending){this.figures.pending.transparentColor=false;this.figures.pending.color=color;this.figures.preview();}}else q.color=color;this.colorUI.sync();this.refreshControls();this.plugin.saveData(q);}
   undoDrawing(redo=false){if(this.figures?.pending){if(!redo)this.figures.undoPoint();return;}this.selection.end();this.finishStroke();const r=this.record;if(r.history.travel(redo)){this.engine.load(r.data).then(()=>this.scheduleRender());this.plugin.refreshLayers(r);this.plugin.store.changed(r);this.plugin.repaint(r);this.plugin.queueSave();}}
   point(event) {
     const c=this.canvas.canvasEl,rect=c.getBoundingClientRect(),scale=rect.width/c.offsetWidth;
@@ -431,7 +433,8 @@ class CanvasSession {
     this.brushButton.setAttribute('aria-pressed',String(this.tool==='brush'));this.eraserButton.setAttribute('aria-pressed',String(this.tool==='eraser'));this.colorButton.style.color=this.toolColor();if(this.colorInput)this.colorInput.value=this.toolColor();this.quickTools?.render();this.workspaceUI?.applyLayout();this.brushUI?.scrollSelected();
   }
   toolColor(){return this.tool==='shape'?this.plugin.settings.shapeStyle.color:this.plugin.settings.color;}
-  setToolColor(color){const q=this.plugin.settings;q.transparentColor=false;q[q.activeColor==='secondary'?'secondaryColor':'mainColor']=color;q.color=color;if(this.tool==='shape'){this.plugin.settings.shapeStyle.color=color;if(this.figures.pending){this.figures.pending.transparentColor=false;this.figures.pending.color=color;this.figures.preview();}this.figures.panelRender();}else this.plugin.settings.color=color;for(const s of this.plugin.sessions.values()){s.colorButton.style.color=s.toolColor();s.colorUI?.sync();}this.plugin.saveData(this.plugin.settings);}
+  colorSettings(){const q=this.plugin.settings;if(this.tool!=='shape')return q;return q.shapeColors??={mainColor:q.shapeStyle.color,secondaryColor:q.secondaryColor,activeColor:'main'};}
+  setToolColor(color){const q=this.plugin.settings;q.transparentColor=false;if(this.tool!=='shape'){q[q.activeColor==='secondary'?'secondaryColor':'mainColor']=color;q.color=color;}if(this.tool==='shape'){const colors=this.colorSettings();colors[colors.activeColor==='secondary'?'secondaryColor':'mainColor']=color;this.plugin.settings.shapeStyle.color=color;if(this.figures.pending){this.figures.pending.transparentColor=false;this.figures.pending.color=color;this.figures.preview();}this.figures.panelRender();}else this.plugin.settings.color=color;for(const s of this.plugin.sessions.values()){s.colorButton.style.color=s.toolColor();s.colorUI?.sync();}this.plugin.saveData(this.plugin.settings);}
   updateCursor(event) {
     const hr=this.host.getBoundingClientRect(),target=event.target;
     const allowed=!this.colorUI?.pick&&['brush','eraser'].includes(this.tool)&&this.drawing&&!this.penZoom&&(!!this.sizeDrag||(!this.space&&this.host.contains(target)&&!target.closest('.cdt-history,.cdt-panel-edge,.cdt-toolbar,.cdt-panel,.cdt-layers,.cdt-color-popup,.canvas-controls')));

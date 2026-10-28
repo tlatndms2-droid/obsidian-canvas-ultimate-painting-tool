@@ -13,12 +13,15 @@ const worker=`const hashes=new Map();const Buffer={from(value){const bytes=typeo
 async function hash(value){if(hashes.has(value))return;const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));hashes.set(value,Array.from(new Uint8Array(b),v=>v.toString(16).padStart(2,'0')).join(''));}
 async function assets(data){for(const a of Object.values(data.assets||{})){if(a&&typeof a.mask==='string')await hash(a.kind+':'+a.width+':'+a.height+':'+a.mask);}}
 self.onmessage=async({data:job})=>{try{hashes.clear();await assets(job.data);const payload=JSON.stringify(job.data);await hash(payload);let previous=null;if(job.previousRaw){const envelope=JSON.parse(job.previousRaw);await hash(envelope.payload);await assets(JSON.parse(envelope.payload));previous=module.exports.decode(job.previousRaw,job.data.id);if(previous.revision>=job.data.revision)throw Error('다른 창 또는 외부에서 변경된 그림입니다. 덮어쓰기를 중지합니다.');}const raw=module.exports.encode(job.data);postMessage({id:job.id,raw,previousVersion:previous?.version});}catch(e){postMessage({id:job.id,error:e.message});}finally{hashes.clear();}};`;
-const main=bundle('main').replace("'__CDT_STORAGE_WORKER__'",JSON.stringify(worker));
+const output=require('esbuild').buildSync({absWorkingDir:root,entryPoints:['src/main.js'],bundle:true,platform:'node',format:'cjs',external:['obsidian','@codemirror/view','@electron/remote'],write:false}).outputFiles[0].text;
+const main=output.replace(/['"]__CDT_STORAGE_WORKER__['"]/,()=>JSON.stringify(worker));
 new vm.Script(main, {filename:'main.js'});
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 if (manifest.version !== pkg.version) throw Error('Version mismatch');
 fs.mkdirSync(path.join(root, 'dist'), {recursive:true});
 fs.writeFileSync(path.join(root, 'dist/main.js'), main);
-for (const name of ['manifest.json', 'styles.css']) fs.copyFileSync(path.join(root, name), path.join(root, 'dist', name));
+for (const name of ['manifest.json']) fs.copyFileSync(path.join(root, name), path.join(root, 'dist', name));
 console.log(`Built ${manifest.id} ${manifest.version}`);
+
+fs.writeFileSync(path.join(root,'dist/styles.css'),fs.readFileSync(path.join(root,'styles.css'),'utf8')+'\n'+fs.readFileSync(path.join(root,'markdown/styles.css'),'utf8'));
