@@ -79,7 +79,8 @@ module.exports = class CanvasDrawingPlugin extends Plugin {
       }
     }
   }
-  async releaseRecord(record){record.releaseWhenSaved=true;if(!await this.store.flush(record))return;if([...this.sessions.values()].some(s=>s.record===record)||record.dirty)return;record.history?.clear();this.store.records.delete(record.data.id);}
+  recordInUse(record){return [...this.sessions.values(),...(this.markdown?.sessions?.values()||[]),...(this.markdown?.initializingSessions||[])].some(s=>s.record===record);}
+  async releaseRecord(record){record.releaseWhenSaved=true;if(!await this.store.flush(record))return;if(this.recordInUse(record)||record.dirty||this.store.records.get(record.data.id)!==record)return;record.history?.clear();this.store.records.delete(record.data.id);}
   repaint(record) { for (const s of this.sessions.values()) if (s.record === record) {
     if(record.data.layers?.some(l=>l.tiles.some(t=>!s.engine.images?.has(t.png))))s.engine.load(record.data).then(()=>s.scheduleRender()).catch(error=>s.protect(error));
     else s.scheduleRender();
@@ -90,7 +91,7 @@ module.exports = class CanvasDrawingPlugin extends Plugin {
     clearTimeout(this.saveTimer);
     if (!this.store) return;
     const ok=await this.store.flushAll();
-    for(const record of this.store.records.values())if(record.releaseWhenSaved&&!record.dirty&&![...this.sessions.values()].some(s=>s.record===record)){record.history?.clear();this.store.records.delete(record.data.id);}
+    for(const record of this.store.records.values())if(record.releaseWhenSaved&&!record.dirty&&!this.recordInUse(record)){record.history?.clear();this.store.records.delete(record.data.id);}
     for (const s of this.sessions.values()){s.showStatus();s.historyUI?.updateBusy();}return ok;
   }
   onunload() {
@@ -446,6 +447,9 @@ class CanvasSession {
   }
   preview() {this.brushUI?.previewsRefresh();}
   paintPreview(canvas,p,globalCurve) {
+    return require('./preview-cache').paint(this.plugin.settings,canvas,p,globalCurve||this.plugin.settings.globalCurve,()=>this.drawPreview(canvas,p,globalCurve));
+  }
+  drawPreview(canvas,p,globalCurve) {
     const settings={...this.plugin.settings,globalCurve:globalCurve||this.plugin.settings.globalCurve,inputMode:'automatic'},engine=new DrawingEngine(()=>this.doc.createElement('canvas'));
     const points=Array.from({length:81},(_,i)=>{const t=i/80;return inputPoint(15+190*t,32-13*Math.sin(t*Math.PI*2),{pointerType:'pen',pressure:Math.sin(Math.PI*t),tiltX:20,tiltY:10},p,settings);});
     engine.sync([{...p,id:'preview',tool:'brush',mix:false,size:4+Math.log2(1+p.size)*2.2,color:'#eee9f5',points}]);

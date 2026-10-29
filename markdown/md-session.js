@@ -23,6 +23,7 @@ class MarkdownSession extends CanvasSession {
   this.workspaceUI.toggle=key=>{if(key==='layersCollapsed')this.openMdPanel('layers');else if(key==='contextCollapsed')this.openMdPanel(this.tool==='shape'?'shape':'brush');else if(key==='toolbarCollapsed')this.setMode(false);else this.workspaceUI.applyLayout()};
   // The shared input router recognizes controls inside .cdt-panel as UI, not ink.
   this.mdUi=this.element('div','cdt-panel mdt-ui',this.host);this.mdUi.style.display='contents';
+  this.visibility=new (require('./md-visibility').MdVisibility)(this);
   this.destroyZoom=require('./md-zoom').installZoom(this);
   this.layerToggle=this.button(this.tools,'layers','MD 레이어 패널',()=>this.openMdPanel('layers'));
   this.colorButton=this.button(this.tools,'palette','MD 색상 패널',()=>{this.mdPanel=null;this.colorUI.toggle();this.applyMdLayout();});
@@ -95,9 +96,9 @@ class MarkdownSession extends CanvasSession {
   if(this.brushPie?.root||this.quickTools.pie?.root||this.colorUI.pie?.root||this.eraserPie?.root||this.detailPie?.root)for(const panel of [this.panel,this.figures.panel,this.layers,this.quickTools.panel])panel.hidden=true;
   for(const b of this.host.querySelectorAll('.mdt-panel-close')){const panel=b.dataset.closePanel==='brush'?this.panel:this.figures.panel;b.hidden=panel.hidden;Object.assign(b.style,{left:(58+Math.min(276,Math.max(140,width-72))-28)+'px',top:'62px'});}
  }
- updateText(update){if(!this.ready)return;if(update.docChanged){this.figures.confirm();this.selection.confirm(false);this.selection.end();this.finishStroke();}this.scheduleRender();}
+ updateText(update){if(!this.ready)return;if(update.docChanged){clearTimeout(this.navTextTimer);this.navTextTimer=setTimeout(()=>{this.navTextTimer=null;if(!this.disposed)this.scheduleRender();},150);this.figures.confirm();this.selection.confirm(false);this.selection.end();this.finishStroke();}this.scheduleRender();}
  render(){if(!this.mdReady)return;super.render();this.applyMdLayout();this.navigator?.render();}
  inspect(){return{path:this.file.path,mode:this.drawing,kind:'fixed',zoom:this.mdZoom?.value||1,pan:{x:this.mdZoom?.panX||0,y:this.mdZoom?.panY||0},tool:this.tool,panel:this.mdPanel,ready:this.ready,id:this.record?.data.id,layers:this.record?.data.layers,strokes:this.record?.data.strokes.length,tiles:this.engine.tiles.size};}
- destroy(){this.navigator?.destroy();this.destroyZoom?.();this.mdUi?.remove();super.destroy();this.host.remove();}
+ destroy(){clearTimeout(this.navTextTimer);this.navigator?.destroy();this.destroyZoom?.();this.mdUi?.remove();super.destroy();this.host.remove();}
 }
 module.exports={MarkdownSession};

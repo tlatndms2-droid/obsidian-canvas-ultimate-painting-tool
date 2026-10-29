@@ -46,7 +46,7 @@ class MdNavigator{
   this.text.append(fragment);this.documentBounds={left,top,right,bottom:Math.max(bottom,1)};
  }
  render(){
-  this.refreshVisibility();if(!this.open||!this.s.ready)return;
+  this.refreshVisibility();if(!this.open||!this.s.ready||this.s.navTextTimer)return;
   const s=this.s;this.rebuildText();
   if(this.lastTiles!==s.engine.tiles&&(!s.active||Date.now()-(this.boundsAt||0)>120)){this.lastTiles=s.engine.tiles;this.boundsAt=Date.now();this.paintBounds=inkBounds(s.engine.tiles);}
   const doc=this.documentBounds,ink=this.paintBounds;const raw={left:Math.min(doc.left,ink?.left??Infinity),top:Math.min(doc.top,ink?.top??Infinity),right:Math.max(doc.right,ink?.right??-Infinity),bottom:Math.max(doc.bottom,ink?.bottom??-Infinity)};
@@ -56,7 +56,10 @@ class MdNavigator{
   this.ratio=Math.min(w/(b.right-b.left),h/(b.bottom-b.top));this.tx=(w-(b.right-b.left)*this.ratio)/2-b.left*this.ratio;this.ty=(h-(b.bottom-b.top)*this.ratio)/2-b.top*this.ratio;
   this.scene.style.transform=`translate(${this.tx}px,${this.ty}px) scale(${this.ratio})`;
   const dpr=s.win.devicePixelRatio||1;if(this.ink.width!==Math.ceil(w*dpr)||this.ink.height!==Math.ceil(h*dpr)){this.ink.width=Math.ceil(w*dpr);this.ink.height=Math.ceil(h*dpr);}
-  const ctx=this.ink.getContext('2d');ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,this.ink.width,this.ink.height);ctx.setTransform(this.ratio*dpr,0,0,this.ratio*dpr,this.tx*dpr,this.ty*dpr);s.engine.render(ctx);
+  const inkKey=[s.engine.displayTiles||s.engine.tiles,this.ink.width,this.ink.height,dpr,this.ratio,this.tx,this.ty];
+  if(!this.inkKey||inkKey.some((v,i)=>v!==this.inkKey[i])){
+   const ctx=this.ink.getContext('2d');ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,this.ink.width,this.ink.height);ctx.setTransform(this.ratio*dpr,0,0,this.ratio*dpr,this.tx*dpr,this.ty*dpr);s.engine.render(ctx);this.inkKey=inkKey;
+  }
   const v=this.viewport();Object.assign(this.frame.style,{left:(this.tx+v.left*this.ratio)+'px',top:(this.ty+v.top*this.ratio)+'px',width:((v.right-v.left)*this.ratio)+'px',height:((v.bottom-v.top)*this.ratio)+'px'});
  }
  world(e){const r=this.area.getBoundingClientRect();return{x:(e.clientX-r.left-this.tx)/this.ratio,y:(e.clientY-r.top-this.ty)/this.ratio};}

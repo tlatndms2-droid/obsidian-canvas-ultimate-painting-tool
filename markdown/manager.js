@@ -4,7 +4,7 @@ const {ViewPlugin}=require('@codemirror/view');
 const {MarkdownSession}=require('./md-session');
 module.exports=class MdDrawingPlugin extends Plugin {
  async onload(){
-  this.data=await this.loadData()||{notes:{}};this.data.notes??={};this.sessions=new Map();this.editors=new Set();this.saveQueue=Promise.resolve();this.pending=new Set();
+  this.data=await this.loadData()||{notes:{}};this.data.notes??={};this.sessions=new Map();this.editors=new Set();this.saveQueue=Promise.resolve();this.pending=new Set();this.initializingSessions=new Set();
   const owner=this;
   this.registerEditorExtension(ViewPlugin.fromClass(class{
    constructor(view){this.view=view;owner.editors.add(this);queueMicrotask(()=>owner.sync());}
@@ -36,11 +36,15 @@ module.exports=class MdDrawingPlugin extends Plugin {
  sync(){if(this.stopping)return;
   for(const s of this.sessions.values())if(!s.isActive())s.settle(false);
   const leaves=this.app.workspace.getLeavesOfType('markdown'),live=new Set([...this.editors].map(e=>e.view));
-  for(const [leaf,s]of this.sessions)if(!leaves.includes(leaf)||leaf.view.editor?.cm!==s.cm||leaf.view.file!==s.file||!live.has(s.cm)||!s.host.isConnected||(!this.integratedDrawing&&!this.app.plugins.getPlugin('canvas-drawing-tool-bar'))){s.destroy();this.sessions.delete(leaf);}
+  for(const [leaf,s]of this.sessions)if(!leaves.includes(leaf)||leaf.view.editor?.cm!==s.cm||leaf.view.file!==s.file||!live.has(s.cm)||!s.host.isConnected||(!this.integratedDrawing&&!this.app.plugins.getPlugin('canvas-drawing-tool-bar'))){s.destroy();this.sessions.delete(leaf);
+   // Initialization may still be loading/migrating. Release only after it settles;
+   // the drawing owner rechecks all live MD/Canvas users after saving.
+   Promise.resolve(s.initializing).catch(()=>{}).then(()=>{if(s.record)return this.drawing?.releaseRecord(s.record);}).catch(console.error);
+  }
   if(!this.connect())return;
   for(const leaf of leaves){const cm=leaf.view.editor?.cm;if(!leaf.view.file||!cm||!live.has(cm)||this.sessions.has(leaf)||this.pending.has(cm))continue;
    this.pending.add(cm);let s;
-   try{s=new MarkdownSession(this,cm,leaf);this.sessions.set(leaf,s);s.initialize().catch(e=>{s.protect(e);new Notice('MD 필기를 열지 못했습니다: '+e.message)}).finally(()=>this.pending.delete(cm));}catch(e){this.pending.delete(cm);console.error('MD Drawing setup',e);new Notice('MD 도구 연결 실패: '+e.message);}
+   try{s=new MarkdownSession(this,cm,leaf);this.sessions.set(leaf,s);this.initializingSessions.add(s);s.initializing=s.initialize().catch(e=>{s.protect(e);new Notice('MD 필기를 열지 못했습니다: '+e.message)}).finally(()=>{this.pending.delete(cm);this.initializingSessions.delete(s);});}catch(e){this.pending.delete(cm);console.error('MD Drawing setup',e);new Notice('MD 도구 연결 실패: '+e.message);}
   }
  }
  persist(){const data=JSON.parse(JSON.stringify(this.data));this.saveQueue=this.saveQueue.catch(()=>{}).then(()=>this.saveData(data));return this.saveQueue;}

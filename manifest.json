@@ -1,7 +1,7 @@
 {
   "id": "canvas-drawing-tool-bar",
   "name": "옵시디언 드로잉 툴바",
-  "version": "1.0.20",
+  "version": "1.0.21",
   "minAppVersion": "1.12.7",
   "description": "Draw on Canvas and Markdown with shared brushes, pressure curves and persistent drawing storage.",
   "author": "tlatndms2-droid",

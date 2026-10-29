@@ -1,4 +1,7 @@
 /* Drawing Tool Bar supplies shared styles. These rules affect Markdown only. */
+.mdt-host .mdt-visibility{position:absolute;top:12px;right:14px;z-index:1005;pointer-events:auto;}
+.mdt-host .mdt-visibility button{width:34px;height:34px;padding:7px;box-shadow:var(--shadow-s);}
+.mdt-host.cdt-artwork-hidden .mdt-nav-ink{visibility:hidden;}
 .mdt-host{position:absolute;inset:0;isolation:isolate;pointer-events:none;z-index:10;overflow:hidden;}
 .cm-editor:has(>.mdt-host)>.cm-scroller{padding-inline-start:60px!important;}
 /* Windows Ink otherwise takes over a pen drag as native panning and sends
