@@ -29,6 +29,8 @@ module.exports = class CanvasDrawingPlugin extends Plugin {
   async onload() {
     this.store = new (require('./storage-async').AsyncDrawingStore)(this.app.vault.adapter.getBasePath());
     const retained=this.app[Symbol.for('canvas-drawing-unsaved')];if(retained){for(const [id,r]of retained)this.store.records.set(id,{data:r.data,dirty:true,error:r.error,undo:[],redo:[]});delete this.app[Symbol.for('canvas-drawing-unsaved')];}
+    this.spaces=new (require('./drawing-spaces').DrawingSpaces)(this);await this.spaces.load();
+    for(const event of ['ultimate-canvas-toolkit:space-will-change','ultimate-canvas-toolkit:space-changed'])this.registerEvent(this.app.workspace.on(event,context=>{const s=[...this.sessions.values()].find(s=>s.view===context.view);if(s){if(event.endsWith('will-change'))this.spaces.prepare(s);else this.spaces.sync(s);}}));
     this.sessions = new Map();this.keyboard=new (require('./drawing-keyboard').DrawingKeyboard)(this);
     this.settings = {size:12, color:'#b6a0e2', opacity:1, density:1, hardness:1, mix:false, paintAmount:.5, colorStretch:.5, eraserSize:32, ...unpackMaterials(await this.loadData() || {})};
     upgrade(this.settings);upgradeWorkspaces(this.settings);require('./navigation-shortcuts').ensure(this.settings);this.settings.historyLimit=Number.isSafeInteger(this.settings.historyLimit)&&this.settings.historyLimit>0?this.settings.historyLimit:50;this.addSettingTab(new HistorySettings(this.app,this));
@@ -39,7 +41,8 @@ module.exports = class CanvasDrawingPlugin extends Plugin {
     this.registerEvent(this.app.workspace.on('layout-change', () => this.sync()));
     this.registerEvent(this.app.workspace.on('active-leaf-change', () => {this.settleInactive();this.flush(); this.sync();queueMicrotask(()=>this.keyboard?.update());}));
     this.registerEvent(this.app.workspace.on('file-open', () => {this.settleInactive();this.flush(); this.sync();}));
-    this.registerEvent(this.app.vault.on('rename', file => {
+    this.registerEvent(this.app.vault.on('rename', (file,oldPath) => {
+      Promise.resolve().then(()=>this.spaces.rename(oldPath,file.path)).catch(error=>new Notice(error.message));
       for (const s of this.sessions.values()) if (s.file === file && s.record) {
         s.record.data.sourcePath = file.path; this.store.changed(s.record);
       }
@@ -64,7 +67,7 @@ module.exports = class CanvasDrawingPlugin extends Plugin {
   }
   settleInactive(){for(const s of this.sessions.values())if(!s.isActive())s.settle();}
   sync() {
-    this.keyboard?.update();
+    this.spaces?.ensureBridge();this.keyboard?.update();for(const s of this.sessions.values())if(s.rootDrawingRecord)this.spaces.sync(s);
     const leaves = new Set(this.app.workspace.getLeavesOfType('canvas'));
     for (const [leaf, s] of this.sessions) {
       if (!leaves.has(leaf) || leaf.view !== s.view || leaf.view.file !== s.file || !s.host.isConnected) {
@@ -96,6 +99,7 @@ module.exports = class CanvasDrawingPlugin extends Plugin {
     for (const s of this.sessions.values()){s.showStatus();s.historyUI?.updateBusy();}return ok;
   }
   onunload() {
+    this.spaces?.destroy();
     require('../markdown/integrated').stop(this);
     for (const s of this.sessions.values()) s.destroy();
     this.sessions.clear();this.keyboard?.destroy();clearTimeout(this.saveTimer);const saved=this.store.close();if(!saved){this.app[Symbol.for('canvas-drawing-unsaved')]=new Map([...this.store.records].filter(([,r])=>r.dirty).map(([id,r])=>[id,{data:r.data,error:r.error}]));new Notice('저장하지 못한 그림을 메모리에 보관했습니다. 플러그인을 다시 켜서 저장을 재시도해주세요.');}
@@ -159,7 +163,7 @@ class CanvasSession {
     if (this.disposed) return;
     this.ready=true;
     for(const [name,redo]of [['undo',false],['redo',true]]){const old=this.canvas[name],session=this;if(typeof old!=='function')continue;const wrapped=function(...args){if(session.drawing&&session.isActive()&&!session.doc.activeElement?.closest('input,textarea,select,[contenteditable=true],.modal')){session.nativeDrawingUndoAt=Date.now();session.win.setTimeout(()=>session.nativeDrawingUndoAt=0,0);session.undoDrawing(redo);return;}return old.apply(this,args);};this.canvas[name]=wrapped;this.listeners.push(()=>{if(this.canvas[name]===wrapped)this.canvas[name]=old;});}
-    this.workspaceUI.applyLayout();this.anchors=new AnchorUI(this);this.zoomExtension=require('./extended-zoom').install(this);this.visibility=new (require('./canvas-visibility').CanvasVisibility)(this);this.anchors.sync(); this.layerUI.render();this.showStatus(); this.render();
+    this.workspaceUI.applyLayout();this.anchors=new AnchorUI(this);this.zoomExtension=require('./extended-zoom').install(this);this.visibility=new (require('./canvas-visibility').CanvasVisibility)(this);this.anchors.sync(); this.layerUI.render();this.showStatus(); await this.plugin.spaces.attach(this,record);this.render();
   }
   listen(target,type,fn,options) {
     target.addEventListener(type,fn,options);
@@ -318,8 +322,9 @@ class CanvasSession {
   }
   brushPoint(event,layer){const p=this.point(event);return [p[0]-(layer?.offset?.x||0),p[1]-(layer?.offset?.y||0)];}
   pointerDown(event) {
+    if(!this.ready&&this.rootDrawingRecord&&this.drawing&&this.isActive()&&this.host.contains(event.target)&&!event.target.closest('.cdt-toolbar,.cdt-panel,.cdt-layers,.canvas-controls')){event.preventDefault();event.stopImmediatePropagation();return;}
     require('./layer-pick').clearHover(this);
-    if(this.view.file!==this.file || this.canvas.data?.canvasDrawing?.id!==this.record?.data.id) {
+    if(this.view.file!==this.file || this.canvas.data?.canvasDrawing?.id!==(this.rootDrawingRecord||this.record)?.data.id || (this.rootDrawingRecord&&this.plugin.spaces.context(this).key!==this.drawingSpaceKey)) {
       if(this.drawing){event.preventDefault();event.stopImmediatePropagation();}
       this.plugin.sync();return;
     }
