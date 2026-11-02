@@ -14,9 +14,10 @@ module.exports=class MdDrawingPlugin extends Plugin {
   for(const event of ['file-open','layout-change','active-leaf-change'])this.registerEvent(this.app.workspace.on(event,()=>this.sync()));
   this.registerEvent(this.app.vault.on('rename',(file,old)=>{if(this.data.notes[old]){this.data.notes[file.path]=this.data.notes[old];delete this.data.notes[old];for(const s of this.sessions.values())if(s.file===file){s.record.data.sourcePath=file.path;s.plugin.store.changed(s.record);}this.persist();}}));
   this.registerInterval(window.setInterval(()=>this.sync(),500));
-  const command=(id,name,key,action)=>this.addCommand({id,name,hotkeys:[{modifiers:['Mod','Alt'],key}],checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready)return false;if(!checking)action(s);return true;}});
+  const command=(id,name,key,action)=>this.addCommand({id,name,hotkeys:[{modifiers:['Mod','Alt'],key}],checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready||(id!=='toggle-ink'&&!s.drawing))return false;if(!checking)action(s);return true;}});
   command('toggle-ink','그리기 / 타이핑 전환','D',s=>s.toggleInput());
-  this.addCommand({id:'toggle-brush-pie',name:'브러시 파이 메뉴 열기 / 닫기',checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready)return false;if(!checking)s.toggleBrushPie();return true;}});
+  this.addCommand({id:'clear-drawing',name:'드로잉 전체 지우기',checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready)return false;if(!checking)s.layerUI.confirmClearAll();return true;}});
+  this.addCommand({id:'toggle-brush-pie',name:'브러시 파이 메뉴 열기 / 닫기',checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready||!s.drawing)return false;if(!checking)s.toggleBrushPie();return true;}});
   command('toggle-eraser-pie','지우개 파이 메뉴 열기 / 닫기','E',s=>s.toggleEraserPie());
   command('toggle-brush-details','브러시 상세 파이 메뉴 열기 / 닫기','B',s=>s.toggleBrushDetails());
   command('toggle-color-pie','색상 파이 메뉴 열기 / 닫기','C',s=>s.colorUI.toggle());
@@ -27,7 +28,7 @@ module.exports=class MdDrawingPlugin extends Plugin {
  connect(){const drawing=this.integratedDrawing||this.app.plugins.getPlugin('canvas-drawing-tool-bar');if(!drawing?.store)return false;
   if(this.drawing===drawing)return true;
   this.drawing=drawing;const owner=this;
-  this.bridge={get settings(){return drawing.settings},get sessions(){return new Map([...drawing.sessions,...owner.sessions])},app:this.app,store:drawing.store,
+  this.bridge={get keyboard(){return drawing.keyboard},get settings(){return drawing.settings},get sessions(){return new Map([...drawing.sessions,...owner.sessions])},app:this.app,store:drawing.store,
    saveData:q=>drawing.saveData(q),flush:()=>drawing.flush(),queueSave:()=>drawing.queueSave(),sync:()=>owner.sync(),
    repaint:r=>{drawing.repaint(r);for(const s of owner.sessions.values())if(s.record===r)s.scheduleRender();},
    refreshLayers:r=>{drawing.refreshLayers(r);for(const s of owner.sessions.values())if(s.record===r)s.layerUI.render();}
@@ -47,7 +48,7 @@ module.exports=class MdDrawingPlugin extends Plugin {
    try{s=new MarkdownSession(this,cm,leaf);this.sessions.set(leaf,s);this.initializingSessions.add(s);s.initializing=s.initialize().catch(e=>{s.protect(e);new Notice('MD 필기를 열지 못했습니다: '+e.message)}).finally(()=>{this.pending.delete(cm);this.initializingSessions.delete(s);});}catch(e){this.pending.delete(cm);console.error('MD Drawing setup',e);new Notice('MD 도구 연결 실패: '+e.message);}
   }
  }
- persist(){const data=JSON.parse(JSON.stringify(this.data));this.saveQueue=this.saveQueue.catch(()=>{}).then(()=>this.saveData(data));return this.saveQueue;}
+ persist(){const data=JSON.parse(JSON.stringify(this.data)),generation=this.persistGeneration=(this.persistGeneration||0)+1;this.persistDirty=true;this.saveQueue=this.saveQueue.catch(()=>{}).then(()=>this.saveData(data)).then(()=>{if(this.persistGeneration===generation)this.persistDirty=false;});return this.saveQueue;}
  inspect(){return[...this.sessions.values()].map(s=>s.inspect());}
  async onunload(){this.stopping=true;for(const s of this.sessions.values())s.destroy();this.sessions.clear();await this.drawing?.flush();await this.persist();}
 };

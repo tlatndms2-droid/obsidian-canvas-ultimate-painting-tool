@@ -46,7 +46,7 @@ class MarkdownSession extends CanvasSession {
  async initialize(){
   const owner=this.owner,text=this.cm.state.doc.toString(),path=this.file.path,meta=owner.data.notes[path]??={text,strokes:[]};
   const drawingId=meta.drawingId||id();this.record=this.plugin.store.load(drawingId,path,!!meta.drawingId);this.record.releaseWhenSaved=false;
-  const d=this.record.data;upgradeLayers(d);d.version=Math.max(8,d.version);d.assets??={};d.paper??=paperDefaults();
+  const d=this.record.data;let migrated=!meta.drawingId||!d.layers||d.version<8||!d.assets||!d.paper||!d.mdFixedOnly||Object.prototype.hasOwnProperty.call(d,'mdText');upgradeLayers(d);d.version=Math.max(8,d.version);d.assets??={};d.paper??=paperDefaults();
   this.record.history??=new History(this.record,this.plugin.settings.historyLimit,()=>{});
   this.canvas.data.canvasDrawing={version:1,id:drawingId};
   this.engine=new LayerRenderer(()=>this.doc.createElement('canvas'));await this.engine.load(d);
@@ -63,10 +63,10 @@ class MarkdownSession extends CanvasSession {
   }
   // Detach links without changing geometry, offsets, layer visibility, or saved pixels.
   // Also detach history states so drawing Undo cannot reintroduce text following.
-  for(const layers of [d.layers,...this.record.undo.map(s=>s.layers||[]),...this.record.redo.map(s=>s.layers||[])])for(const l of layers)if(l.mdAnchor){l.mdFormerAnchor=l.mdAnchor;delete l.mdAnchor;delete l.mdWasVisible;}
-  d.mdFixedOnly=true;delete d.mdText;seal(d);this.plugin.store.changed(this.record);
+  for(const layers of [d.layers,...this.record.undo.map(s=>s.layers||[]),...this.record.redo.map(s=>s.layers||[])])for(const l of layers)if(l.mdAnchor){migrated=true;l.mdFormerAnchor=l.mdAnchor;delete l.mdAnchor;delete l.mdWasVisible;}
+  d.mdFixedOnly=true;delete d.mdText;seal(d);if(migrated)this.plugin.store.changed(this.record);
   if(!await this.plugin.store.flush(this.record))throw Error(this.record.error||'MD 필기 저장 실패');
-  meta.drawingId=drawingId;await owner.persist();this.ready=this.mdReady=true;this.layerUI.render();this.refreshControls();this.applyMdLayout();this.scheduleRender();
+  if(meta.drawingId!==drawingId||owner.persistDirty){meta.drawingId=drawingId;await owner.persist();}this.ready=this.mdReady=true;this.layerUI.render();this.refreshControls();this.applyMdLayout();this.scheduleRender();
  }
  legacyAnchorPosition(from,to,quote){if(from<0||from>this.cm.state.doc.length)return null;const c=this.cm.coordsAtPos(from,1),r=this.cm.contentDOM.getBoundingClientRect();return c?{from,to,quote,x:c.left-r.left,y:c.top-r.top,orphan:false}:null;}
  pointerDown(e){if(!this.ready||e.target.closest('.mdt-panel-close'))return;super.pointerDown(e);if(this.drawing&&!e.target.closest('input,select,textarea'))this.host.focus({preventScroll:true});}
@@ -76,6 +76,7 @@ class MarkdownSession extends CanvasSession {
   if(this.colorUI?.pie?.key(e))return;
   if(this.quickTools?.pie?.key(e))return;
   if(this.drawing&&e.code==='Escape'&&!this.figures.pending&&!this.selection.drag&&!this.selection.parts?.length&&!this.colorUI.pick){e.preventDefault();e.stopImmediatePropagation();this.setMode(false);return;}
+  if(require('../src/drawing-keyboard').mdUndo(this,e))return;
   super.keyDown(e,fromScope);
  }
  toggleInput(){if(this.active||this.figures.pending||this.selection.drag){new Notice('현재 획이나 도형을 마친 뒤 전환하세요.');return;}this.setMode(!this.drawing);}
@@ -93,6 +94,7 @@ class MarkdownSession extends CanvasSession {
   if(this.quickTools.opened)this.quickTools.panel.hidden=!this.drawing;
   const width=this.host.clientWidth,height=this.host.clientHeight;
   for(const panel of [this.panel,this.figures.panel,this.layers,this.quickTools.panel]){Object.assign(panel.style,{left:'58px',right:'auto',top:'58px',width:Math.min(276,Math.max(140,width-72))+'px',maxHeight:Math.max(120,height-75)+'px',height:'auto'});}
+  this.positionLayers?.();
   if(this.brushPie?.root||this.quickTools.pie?.root||this.colorUI.pie?.root||this.eraserPie?.root||this.detailPie?.root)for(const panel of [this.panel,this.figures.panel,this.layers,this.quickTools.panel])panel.hidden=true;
   for(const b of this.host.querySelectorAll('.mdt-panel-close')){const panel=b.dataset.closePanel==='brush'?this.panel:this.figures.panel;b.hidden=panel.hidden;Object.assign(b.style,{left:(58+Math.min(276,Math.max(140,width-72))-28)+'px',top:'62px'});}
  }

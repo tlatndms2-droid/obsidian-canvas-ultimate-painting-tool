@@ -3,7 +3,7 @@ const {inkBounds}=require('../src/raster-edit');
 const fontKeys=['fontFamily','fontSize','fontWeight','fontStyle','lineHeight','letterSpacing','tabSize','color','whiteSpace','wordBreak','overflowWrap'];
 class MdNavigator{
  constructor(s){
-  this.s=s;this.open=s.owner.data.navigatorVisible!==false;this.drag=null;this.lastDoc=null;this.lastTiles=null;
+  this.s=s;this.open=s.owner.data.navigatorVisible!==false;this.drag=null;this.lastDoc=null;this.lastTiles=null;this.boundsCache=new WeakMap();
   this.box=s.element('div','cdt-panel mdt-navigator',s.host);this.box.setAttribute('aria-label','MD 문서와 필기 네비게이터');
   this.area=s.element('div','mdt-nav-area',this.box);this.area.setAttribute('role','img');this.area.setAttribute('aria-label','문서와 바깥 필기 전체 축소본');
   this.scene=s.element('div','mdt-nav-scene',this.area);this.text=s.element('div','cm-content mdt-nav-text',this.scene);this.text.setAttribute('aria-hidden','true');
@@ -48,7 +48,7 @@ class MdNavigator{
  render(){
   this.refreshVisibility();if(!this.open||!this.s.ready||this.s.navTextTimer)return;
   const s=this.s;this.rebuildText();
-  if(this.lastTiles!==s.engine.tiles&&(!s.active||Date.now()-(this.boundsAt||0)>120)){this.lastTiles=s.engine.tiles;this.boundsAt=Date.now();this.paintBounds=inkBounds(s.engine.tiles);}
+  if(this.lastTiles!==s.engine.tiles&&(!s.active||Date.now()-(this.boundsAt||0)>120)){this.lastTiles=s.engine.tiles;this.boundsAt=Date.now();this.paintBounds=inkBounds(s.engine.tiles,this.boundsCache);}
   const doc=this.documentBounds,ink=this.paintBounds;const raw={left:Math.min(doc.left,ink?.left??Infinity),top:Math.min(doc.top,ink?.top??Infinity),right:Math.max(doc.right,ink?.right??-Infinity),bottom:Math.max(doc.bottom,ink?.bottom??-Infinity)};
   const pad=Math.max(24,Math.max(raw.right-raw.left,raw.bottom-raw.top)*.035);this.contentBounds=raw;
   if(!this.drag)this.bounds={left:raw.left-pad,top:raw.top-pad,right:raw.right+pad,bottom:raw.bottom+pad};
