@@ -46,7 +46,7 @@ class LayerRenderer{
   const pad=Math.max(1,Math.ceil(2/Math.min(m.a,m.d))),neighbors=[];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)neighbors.push(tiles.get((t.x+dx)+','+(t.y+dy)));
   let cache=this.padding.get(t);if(!cache||cache.pad!==pad||neighbors.some((n,i)=>n!==cache.neighbors[i])){const c=this.make();c.width=c.height=TILE+pad*2;const pc=c.getContext('2d');neighbors.forEach((n,i)=>{if(n)pc.drawImage(n.c,pad+(i%3-1)*TILE,pad+(Math.floor(i/3)-1)*TILE)});cache={pad,neighbors,c};this.padding.set(t,cache);}
   const left=Math.round(x*m.a+m.e),top=Math.round(y*m.d+m.f),right=Math.round((x+TILE)*m.a+m.e),bottom=Math.round((y+TILE)*m.d+m.f);ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.beginPath();ctx.rect(left,top,right-left,bottom-top);ctx.clip();ctx.setTransform(m);ctx.drawImage(cache.c,x-pad,y-pad);ctx.restore();}}
- dispose(){this.engines.clear();this.images.clear();this.loading.clear();this.tiles.clear();this.history.entries.clear();this.history.bytes=0;this.compositeCache?.clear();this.padding=new WeakMap();this.ink=new WeakMap();this.displayTiles=null;}
+ dispose(){this.engines.clear();this.images.clear();this.loading.clear();this.tiles.clear();this.history.entries.clear();this.history.bytes=0;this.compositeCache?.clear();this.paperTileCache?.clear();this.padding=new WeakMap();this.ink=new WeakMap();this.thumbCache=new WeakMap();this.syncKey=null;this.overrides=null;this.displayTiles=null;}
  prune(data){const ids=new Set(data.layers.map(l=>l.id));for(const id of this.engines.keys())if(!ids.has(id))this.engines.delete(id);}
 
  sample(x,y){const tx=Math.floor(x/TILE),ty=Math.floor(y/TILE);return Array.from(this.tiles.get(tx+','+ty)?.c.getContext('2d').getImageData(Math.floor(x-tx*TILE),Math.floor(y-ty*TILE),1,1).data||[0,0,0,0]);}

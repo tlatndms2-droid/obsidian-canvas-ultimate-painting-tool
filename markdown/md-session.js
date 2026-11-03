@@ -82,24 +82,31 @@ class MarkdownSession extends CanvasSession {
  toggleInput(){if(this.active||this.figures.pending||this.selection.drag){new Notice('현재 획이나 도형을 마친 뒤 전환하세요.');return;}this.setMode(!this.drawing);}
  setMode(on){const was=this.drawing;super.setMode(on);if(this.ready&&this.mdZoom&&this.drawing!==was)this.switchMdViewport(this.drawing);this.mdPanel=null;this.applyMdLayout();if(!this.ready)return;if(this.drawing)this.host.focus({preventScroll:true});else this.view.editor.cm.focus();}
  openMdPanel(which){this.mdPanel=this.mdPanel===which?null:which;this.colorUI.close();this.applyMdLayout();}
- applyMdLayout(){
+ applyMdLayout(renderOnly=false){
   if(!this.host.classList.contains('mdt-host'))return;
-  this.tools.hidden=!this.drawing;this.workspaceUI.footer.hidden=true;this.paperButton.hidden=true;this.quickTools.button.hidden=!this.drawing;
+  // Read geometry before writes; drawing and panning do not change panel layout.
+  const width=this.host.clientWidth,height=this.host.clientHeight;
+  const pie=!!(this.brushPie?.root||this.quickTools.pie?.root||this.colorUI.pie?.root||this.eraserPie?.root||this.detailPie?.root);
+  const key=[width,height,this.drawing,this.mdPanel,this.tool,pie,this.quickTools.opened,this.layerPanelPoint?.x,this.layerPanelPoint?.y,this.navigator?.button,this.zoomReset];
+  if(renderOnly&&this.mdLayoutKey?.length===key.length&&key.every((v,i)=>v===this.mdLayoutKey[i]))return;
+  const hide=(el,value)=>{if(el&&el.hidden!==value)el.hidden=value;};
+  const style=(el,values)=>{for(const[k,v]of Object.entries(values))if(el.style[k]!==v)el.style[k]=v;};
+  hide(this.tools,!this.drawing);hide(this.workspaceUI.footer,true);hide(this.paperButton,true);hide(this.quickTools.button,!this.drawing);
   const order=[this.brushButton,this.eraserButton,this.editButtons.rectangle,this.editButtons['move-layer'],this.editButtons.shape,this.colorButton,this.quickTools.button,this.layerToggle,...(this.navigator?[this.navigator.button]:[]),this.undoButton,this.redoButton];
   const current=[...this.tools.children].filter(b=>order.includes(b));if(current.some((b,i)=>b!==order[i]))for(const b of order)this.tools.append(b);
-  this.toolbar.classList.toggle('mdt-expanded',this.drawing);this.toggle.setAttribute('aria-label',this.drawing?'MD 타이핑으로 전환':'MD 그리기 시작');this.toggle.title=this.drawing?'타이핑 · Ctrl+Alt+D':'그리기 · Ctrl+Alt+D';
-  this.panel.hidden=!(this.drawing&&this.mdPanel==='brush'&&['brush','eraser'].includes(this.tool));
-  if(this.zoomReset)this.zoomReset.hidden=!this.drawing;
-  this.figures.panel.hidden=!(this.drawing&&this.mdPanel==='shape'&&this.tool==='shape');this.layers.hidden=!(this.drawing&&this.mdPanel==='layers');
-  if(this.quickTools.opened)this.quickTools.panel.hidden=!this.drawing;
-  const width=this.host.clientWidth,height=this.host.clientHeight;
-  for(const panel of [this.panel,this.figures.panel,this.layers,this.quickTools.panel]){Object.assign(panel.style,{left:'58px',right:'auto',top:'58px',width:Math.min(276,Math.max(140,width-72))+'px',maxHeight:Math.max(120,height-75)+'px',height:'auto'});}
+  this.toolbar.classList.toggle('mdt-expanded',this.drawing);const label=this.drawing?'MD 타이핑으로 전환':'MD 그리기 시작',title=this.drawing?'타이핑 · Ctrl+Alt+D':'그리기 · Ctrl+Alt+D';if(this.toggle.getAttribute('aria-label')!==label)this.toggle.setAttribute('aria-label',label);if(this.toggle.title!==title)this.toggle.title=title;
+  hide(this.panel,pie||!(this.drawing&&this.mdPanel==='brush'&&['brush','eraser'].includes(this.tool)));
+  hide(this.zoomReset,!this.drawing);
+  hide(this.figures.panel,pie||!(this.drawing&&this.mdPanel==='shape'&&this.tool==='shape'));hide(this.layers,pie||!(this.drawing&&this.mdPanel==='layers'));
+  if(this.quickTools.opened)hide(this.quickTools.panel,pie||!this.drawing);
+  for(const panel of [this.panel,this.figures.panel,this.layers,this.quickTools.panel]){if(panel===this.layers&&this.layerPanelPoint&&!panel.hidden)continue;style(panel,{left:'58px',right:'auto',top:'58px',width:Math.min(276,Math.max(140,width-72))+'px',maxHeight:Math.max(120,height-75)+'px',height:'auto'});}
   this.positionLayers?.();
-  if(this.brushPie?.root||this.quickTools.pie?.root||this.colorUI.pie?.root||this.eraserPie?.root||this.detailPie?.root)for(const panel of [this.panel,this.figures.panel,this.layers,this.quickTools.panel])panel.hidden=true;
-  for(const b of this.host.querySelectorAll('.mdt-panel-close')){const panel=b.dataset.closePanel==='brush'?this.panel:this.figures.panel;b.hidden=panel.hidden;Object.assign(b.style,{left:(58+Math.min(276,Math.max(140,width-72))-28)+'px',top:'62px'});}
+  if(pie)for(const panel of [this.panel,this.figures.panel,this.layers,this.quickTools.panel])hide(panel,true);
+  for(const b of this.host.querySelectorAll('.mdt-panel-close')){const panel=b.dataset.closePanel==='brush'?this.panel:this.figures.panel;hide(b,panel.hidden);style(b,{left:(58+Math.min(276,Math.max(140,width-72))-28)+'px',top:'62px'});}
+  this.mdLayoutKey=key;
  }
  updateText(update){if(!this.ready)return;if(update.docChanged){clearTimeout(this.navTextTimer);this.navTextTimer=setTimeout(()=>{this.navTextTimer=null;if(!this.disposed)this.scheduleRender();},150);this.figures.confirm();this.selection.confirm(false);this.selection.end();this.finishStroke();}this.scheduleRender();}
- render(){if(!this.mdReady)return;super.render();this.applyMdLayout();this.navigator?.render();}
+ render(){if(!this.mdReady)return;super.render();this.applyMdLayout(true);this.navigator?.render();}
  inspect(){return{path:this.file.path,mode:this.drawing,kind:'fixed',zoom:this.mdZoom?.value||1,pan:{x:this.mdZoom?.panX||0,y:this.mdZoom?.panY||0},tool:this.tool,panel:this.mdPanel,ready:this.ready,id:this.record?.data.id,layers:this.record?.data.layers,strokes:this.record?.data.strokes.length,tiles:this.engine.tiles.size};}
  destroy(){clearTimeout(this.navTextTimer);this.navigator?.destroy();this.destroyZoom?.();this.mdUi?.remove();super.destroy();this.host.remove();}
 }

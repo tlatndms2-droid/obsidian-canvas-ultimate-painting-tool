@@ -14,8 +14,23 @@ function hasInk(c){const a=c.getContext('2d').getImageData(0,0,c.width,c.height)
 function inkBounds(tiles,cache){let l=Infinity,t=Infinity,r=-Infinity,b=-Infinity;for(const tile of tiles.values()){let q=cache?.get(tile);if(!q){q={left:Infinity,top:Infinity,right:-Infinity,bottom:-Infinity};const a=tile.c.getContext('2d').getImageData(0,0,TILE,TILE).data;for(let y=0;y<TILE;y++)for(let x=0;x<TILE;x++)if(a[(y*TILE+x)*4+3]){q.left=Math.min(q.left,x);q.top=Math.min(q.top,y);q.right=Math.max(q.right,x+1);q.bottom=Math.max(q.bottom,y+1);}cache?.set(tile,q);}l=Math.min(l,tile.x*TILE+q.left);t=Math.min(t,tile.y*TILE+q.top);r=Math.max(r,tile.x*TILE+q.right);b=Math.max(b,tile.y*TILE+q.bottom);}return Number.isFinite(l)?{left:l,top:t,right:r,bottom:b}:null;}
 function split(make,tiles,polygon){const selected=new Map(),remainder=new Map();for(const [key,t]of tiles){for(const [out,operation]of [[selected,'destination-in'],[remainder,'destination-out']]){const c=canvas(make),ctx=c.getContext('2d');ctx.drawImage(t.c,0,0);if(polygon?.[0]?.points){ctx.globalCompositeOperation=operation;ctx.drawImage(require('./selection-mask').mask(make,polygon,t.x*TILE,t.y*TILE),0,0);}else if(polygon){ctx.globalCompositeOperation=operation;ctx.beginPath();polygon.forEach((p,i)=>ctx[i?'lineTo':'moveTo'](p[0]-t.x*TILE,p[1]-t.y*TILE));ctx.closePath();ctx.fill();}else if(out===remainder)ctx.clearRect(0,0,TILE,TILE);if(hasInk(c))out.set(key,{x:t.x,y:t.y,c});}}return {selected,remainder};}
 function merge(make,...maps){const result=new Map();for(const tiles of maps)for(const [key,t]of tiles){let dst=result.get(key);if(!dst){dst={x:t.x,y:t.y,c:canvas(make)};result.set(key,dst);}dst.c.getContext('2d').drawImage(t.c,0,0);}return result;}
-function transform(make,tiles,m){if(!tiles.size)return new Map();const b=inkBounds(tiles);if(!b)return new Map();const outBounds=bounds(corners(b).map(p=>point(m,p))),result=new Map();
+// Integer translation preserves pixels: visit occupied tiles, not the (possibly
+// enormous and mostly empty) bounding rectangle between them. Keep new canvases
+// so edits to the result cannot mutate history or the source tiles.
+function translateTiles(make,tiles,dx,dy,normalizeAlpha){const result=new Map();
+ for(const t of tiles.values()){const left=t.x*TILE+dx,top=t.y*TILE+dy;
+  for(let y=Math.floor(top/TILE);y<Math.ceil((top+TILE)/TILE);y++)for(let x=Math.floor(left/TILE);x<Math.ceil((left+TILE)/TILE);x++){
+   const key=x+','+y;let out=result.get(key);if(!out){out={x,y,c:canvas(make)};result.set(key,out);}out.c.getContext('2d').drawImage(t.c,left-x*TILE,top-y*TILE);
+  }
+ }
+ // The legacy large-image sampler round-trips unpremultiplied RGBA through
+ // ImageData. Preserve that rounding as well as geometry and alpha.
+ for(const [key,t]of result){if(normalizeAlpha){const ctx=t.c.getContext('2d');ctx.putImageData(ctx.getImageData(0,0,TILE,TILE),0,0);}if(!hasInk(t.c))result.delete(key);}return result;
+}
+function transform(make,tiles,m){if(!tiles.size)return new Map();
+ const b=inkBounds(tiles);if(!b)return new Map();const outBounds=bounds(corners(b).map(p=>point(m,p))),result=new Map();
  const width=b.right-b.left,height=b.bottom-b.top;
+ if(m[0]===1&&m[1]===0&&m[2]===0&&m[3]===1&&Number.isSafeInteger(m[4])&&Number.isSafeInteger(m[5]))return translateTiles(make,tiles,m[4],m[5],width*height>16777216||width>8192||height>8192);
  if(width*height<=16777216&&width<=8192&&height<=8192){const source=canvas(make,width,height),sc=source.getContext('2d');for(const t of tiles.values())sc.drawImage(t.c,t.x*TILE-b.left,t.y*TILE-b.top);for(let y=Math.floor(outBounds.top/TILE);y<Math.ceil(outBounds.bottom/TILE);y++)for(let x=Math.floor(outBounds.left/TILE);x<Math.ceil(outBounds.right/TILE);x++){const c=canvas(make),ctx=c.getContext('2d');ctx.translate(-x*TILE,-y*TILE);ctx.transform(...m);ctx.drawImage(source,b.left,b.top);if(hasInk(c))result.set(x+','+y,{x,y,c});}return result;}
  // Sample in premultiplied alpha across tile edges; no giant temporary bitmap.
  const inv=inverse(m),pixels=new Map([...tiles].map(([key,t])=>[key,t.c.getContext('2d').getImageData(0,0,TILE,TILE).data]));

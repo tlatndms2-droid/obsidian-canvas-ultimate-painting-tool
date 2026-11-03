@@ -45,6 +45,12 @@ class LayerUI{
    row.ondragstart=e=>{if(!this.d.selectedLayers.includes(l.id))this.select(l.id);this.dragIds=[...this.d.selectedLayers];e.dataTransfer.setData('application/cdt-layers',JSON.stringify(this.dragIds));e.dataTransfer.effectAllowed='all';row.classList.add('cdt-drag-source');};row.ondragover=e=>this.showDrop(row,l,e);row.ondrop=e=>this.finishDrop(e);row.ondragend=()=>{this.clearDrop();this.dragIds=null;row.classList.remove('cdt-drag-source');};}
    if(l.type==='group'&&(l.expanded||query||this.filter!=='all'))walk(l.id,depth+1);
   }};walk(null,0);this.refreshThumbnails();}
- refreshThumbnails(){for(const [id,c]of this.thumbs){const l=this.d.layers.find(l=>l.id===id);if(l)this.s.engine.thumbnail(c,l.type==='group'?this.s.engine.composite(this.d,l.id,this.s.active?.stroke.id):this.s.engine.leaf(this.d,l,this.s.active?.stroke.id));}}
+ refreshThumbnails(){const d=this.d,active=this.s.active?.stroke;
+  const key=[this.s.engine,this.s.engine.images?.size,d,d.revision,d.strokes,d.strokes.length,d.strokes.at(-1),d.strokes.at(-1)?.points?.length,d.layers,d.assets,this.s.engine.overrides,active,active?.points?.length,
+   ...d.layers.flatMap(l=>[l,l.id,l.parent,l.type,l.visible,l.opacity,l.blend,l.clip,l.offset?.x,l.offset?.y,l.tiles]),...[...this.thumbs.values()].flatMap(c=>[c,c.width,c.height])];
+  if(this.thumbState?.length===key.length&&key.every((v,i)=>v===this.thumbState[i]))return;
+  for(const [id,c]of this.thumbs){const l=d.layers.find(l=>l.id===id);if(l)this.s.engine.thumbnail(c,l.type==='group'?this.s.engine.composite(d,l.id,active?.id):this.s.engine.leaf(d,l,active?.id));}
+  this.thumbState=key;
+ }
 }
 module.exports={LayerUI};
