@@ -220,6 +220,7 @@ class CanvasSession {
     for(const type of ['mousedown','mousemove','mouseup'])this.listen(this.doc,type,e=>{if(this.colorUI.pick&&(this.colorUI.pick.held||this.colorUI.pick.released)){e.preventDefault();e.stopImmediatePropagation();}},true);
     this.listen(this.host,'pointerdown',e=>this.pointerDown(e),true);
     this.listen(this.win,'pointermove',e=>this.pointerMove(e),true);
+    this.listen(this.win,'blur',()=>this.cursorInput?.reset());
     this.listen(this.win,'pointerup',e=>this.pointerUp(e),true);
     this.listen(this.win,'pointercancel',e=>this.pointerUp(e),true);
     this.listen(this.doc,'pointermove',e=>{if(this.isActive()&&this.host.contains(e.target))this.layerPointer={x:e.clientX,y:e.clientY};},true);
@@ -249,6 +250,7 @@ class CanvasSession {
   toggleEraserPie(){this.eraserPie??=new (require('./pie-menu').PieMenu)(this.quickTools,'eraser');this.eraserPie.toggle();}
   toggleBrushDetails(){this.detailPie??=new (require('./brush-detail-pie').BrushDetailPie)(this);this.detailPie.toggle();}
   setMode(on) {
+    this.cursorInput?.reset();
     this.clearCtrlPick();
     this.brushPie?.close();this.eraserPie?.close();this.detailPie?.close();this.quickTools?.pie?.close();
     require('./navigation-shortcuts').reset(this);
@@ -326,6 +328,7 @@ class CanvasSession {
   }
   brushPoint(event,layer){const p=this.point(event);return [p[0]-(layer?.offset?.x||0),p[1]-(layer?.offset?.y||0)];}
   pointerDown(event) {
+    if(this.isActive()&&this.drawing)this.acceptCursorInput(event);
     if(!this.ready&&this.rootDrawingRecord&&this.drawing&&this.isActive()&&this.host.contains(event.target)&&!event.target.closest('.cdt-toolbar,.cdt-panel,.cdt-layers,.canvas-controls')){event.preventDefault();event.stopImmediatePropagation();return;}
     require('./layer-pick').clearHover(this);
     if(this.view.file!==this.file || this.canvas.data?.canvasDrawing?.id!==(this.rootDrawingRecord||this.record)?.data.id || (this.rootDrawingRecord&&this.plugin.spaces.context(this).key!==this.drawingSpaceKey)) {
@@ -384,7 +387,10 @@ class CanvasSession {
     this.penZoom={id:event.pointerId,x:event.clientX,zoom:this.canvas.tZoom,center:this.canvas.domPosFromEvt(event)};
     this.host.setPointerCapture(event.pointerId);this.host.classList.add('cdt-pen-zoom');this.cursor.hidden=true;if(this.mixHint)this.mixHint.hidden=true;
   }
+  acceptCursorInput(event){this.cursorInput??=new (require('./cursor-input').CursorInput)();return this.cursorInput.accept(event,this.win.performance.now());}
   pointerMove(event) {
+    const pointerOwner=this.active||this.sizeDrag||this.penPan||this.penZoom;
+    if(pointerOwner&&event.pointerId!==pointerOwner.id)return;
     if(this.colorUI.pick){this.lastPointer=event;this.colorUI.move(event);this.cursor.hidden=true;if(this.mixHint)this.mixHint.hidden=true;return;}
     const wantsZoom=event.pointerType==='pen'&&event.ctrlKey&&!!(event.buttons&2);
     if(this.penZoom?.id===event.pointerId){
@@ -394,6 +400,7 @@ class CanvasSession {
       this.canvas.zoomBy(target-this.canvas.tZoom,this.penZoom.center);this.canvas.finishViewportAnimation=true;return;
     }
     if(wantsZoom&&this.drawing&&this.ready&&this.isActive()&&this.host.contains(event.target)&&!this.space&&!this.sizeDrag&&this.view.file===this.file&&!event.target.closest('.cdt-history,.cdt-panel-edge,.cdt-anchors,.cdt-panel,.cdt-layers,.cdt-toolbar,.cdt-color-popup,.canvas-controls,.canvas-card-menu,.canvas-menu')){this.startPenZoom(event);return;}
+    if(this.isActive()&&this.drawing&&!this.acceptCursorInput(event))return;
     this.lastPointer=event;if(['rectangle','lasso'].includes(this.tool))require('./layer-pick').hover(this,event);this.anchors?.move(event);if(require('./layer-pick').move(this,event))return;
     if(this.figures.move(event))return;
     if(this.selection.safe(()=>this.selection.move(event)))return;
@@ -453,6 +460,9 @@ class CanvasSession {
   colorSettings(){const q=this.plugin.settings;if(this.tool!=='shape')return q;return q.shapeColors??={mainColor:q.shapeStyle.color,secondaryColor:q.secondaryColor,activeColor:'main'};}
   setToolColor(color){const q=this.plugin.settings;q.transparentColor=false;if(this.tool!=='shape'){q[q.activeColor==='secondary'?'secondaryColor':'mainColor']=color;q.color=color;}if(this.tool==='shape'){const colors=this.colorSettings();colors[colors.activeColor==='secondary'?'secondaryColor':'mainColor']=color;this.plugin.settings.shapeStyle.color=color;if(this.figures.pending){this.figures.pending.transparentColor=false;this.figures.pending.color=color;this.figures.preview();}this.figures.panelRender();}else this.plugin.settings.color=color;for(const s of this.plugin.sessions.values()){s.colorButton.style.color=s.toolColor();s.colorUI?.sync();}this.plugin.saveData(this.plugin.settings);}
   updateCursor(event) {
+    if(this.isActive()&&this.drawing&&!this.acceptCursorInput(event))return;
+    const pointerOwner=this.active||this.sizeDrag||this.penPan||this.penZoom;
+    if(pointerOwner&&event.pointerId!==pointerOwner.id)return;
     const hr=this.host.getBoundingClientRect(),target=event.target;
     const allowed=!this.colorUI?.pick&&['brush','eraser'].includes(this.tool)&&this.drawing&&!this.penZoom&&(!!this.sizeDrag||(!this.space&&this.host.contains(target)&&!target.closest('.cdt-history,.cdt-panel-edge,.cdt-toolbar,.cdt-panel,.cdt-layers,.cdt-color-popup,.canvas-controls')));
     this.cursor.hidden=!allowed;if(this.mixHint)this.mixHint.hidden=true;if(!allowed)return;
