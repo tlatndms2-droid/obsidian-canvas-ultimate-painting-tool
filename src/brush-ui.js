@@ -20,7 +20,9 @@ class BrushUI {
  canvas(parent,p){const c=this.el('canvas','cdt-brush-preview',parent);c.width=220;c.height=64;this.previews.push({c,p});this.s.paintPreview(c,p);return c;}
  scrollSelected(){const list=this.s.panel.querySelector('.cdt-preset-list'),active=list?.querySelector('.is-active');if(active&&!this.s.panel.hidden)list.scrollTop=active.offsetTop-list.offsetTop;}
  previewsRefresh(){this.previews=this.previews.filter(x=>x.c.isConnected);for(const {c,p} of this.previews)this.s.paintPreview(c,p);}
+ ensureRendered(){if(this.pendingRender&&this.s.drawing&&['brush','eraser'].includes(this.s.tool))this.render();}
  render(){
+  if(!this.s.drawing){this.pendingRender=true;return;}this.pendingRender=false;
   const panel=this.s.panel;panel.replaceChildren();this.previews=this.previews.filter(x=>!panel.contains(x.c)&&x.c.isConnected);
   this.el('div','cdt-panel-heading',panel,this.s.tool==='eraser'?'지우개':'브러시');
   const all=this.plugin.settings.presets.filter(p=>p.tool===this.s.tool),pins=all.filter(p=>p.pinned);

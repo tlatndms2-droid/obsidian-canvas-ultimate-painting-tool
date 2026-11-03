@@ -14,12 +14,12 @@ module.exports=class MdDrawingPlugin extends Plugin {
   for(const event of ['file-open','layout-change','active-leaf-change'])this.registerEvent(this.app.workspace.on(event,()=>this.sync()));
   this.registerEvent(this.app.vault.on('rename',(file,old)=>{if(this.data.notes[old]){this.data.notes[file.path]=this.data.notes[old];delete this.data.notes[old];for(const s of this.sessions.values())if(s.file===file){s.record.data.sourcePath=file.path;s.plugin.store.changed(s.record);}this.persist();}}));
   this.registerInterval(window.setInterval(()=>this.sync(),500));
-  const command=(id,name,key,action)=>this.addCommand({id,name,hotkeys:[{modifiers:['Mod','Alt'],key}],checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready||(id!=='toggle-ink'&&!s.drawing))return false;if(!checking)action(s);return true;}});
+  const command=(id,name,key,action)=>this.addCommand({id,name,hotkeys:key?[{modifiers:['Mod','Alt'],key}]:[],checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready||(id!=='toggle-ink'&&!s.drawing))return false;if(!checking)action(s);return true;}});
   command('toggle-ink','그리기 / 타이핑 전환','D',s=>s.toggleInput());
-  this.addCommand({id:'clear-drawing',name:'드로잉 전체 지우기',checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready)return false;if(!checking)s.layerUI.confirmClearAll();return true;}});
+  if(!this.integratedDrawing)this.addCommand({id:'clear-drawing',name:'드로잉 전체 지우기',checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready)return false;if(!checking)s.layerUI.confirmClearAll();return true;}});
   this.addCommand({id:'toggle-brush-pie',name:'브러시 파이 메뉴 열기 / 닫기',checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready||!s.drawing)return false;if(!checking)s.toggleBrushPie();return true;}});
   command('toggle-eraser-pie','지우개 파이 메뉴 열기 / 닫기','E',s=>s.toggleEraserPie());
-  command('toggle-brush-details','브러시 상세 파이 메뉴 열기 / 닫기','B',s=>s.toggleBrushDetails());
+  command('toggle-brush-details','브러시 상세 파이 메뉴 열기 / 닫기',null,s=>s.toggleBrushDetails());
   command('toggle-color-pie','색상 파이 메뉴 열기 / 닫기','C',s=>s.colorUI.toggle());
   command('toggle-pie','지정 도구 파이 메뉴 열기 / 닫기','Q',s=>s.quickTools.toggle());
   command('toggle-navigator','네비게이터 열기 / 닫기','N',s=>s.navigator.toggle());

@@ -17,20 +17,23 @@ function merge(make,...maps){const result=new Map();for(const tiles of maps)for(
 // Integer translation preserves pixels: visit occupied tiles, not the (possibly
 // enormous and mostly empty) bounding rectangle between them. Keep new canvases
 // so edits to the result cannot mutate history or the source tiles.
-function translateTiles(make,tiles,dx,dy,normalizeAlpha){const result=new Map();
+function translateTiles(make,tiles,dx,dy,normalizeAlpha,cache){const result=new Map(),commands=new Map();
  for(const t of tiles.values()){const left=t.x*TILE+dx,top=t.y*TILE+dy;
   for(let y=Math.floor(top/TILE);y<Math.ceil((top+TILE)/TILE);y++)for(let x=Math.floor(left/TILE);x<Math.ceil((left+TILE)/TILE);x++){
-   const key=x+','+y;let out=result.get(key);if(!out){out={x,y,c:canvas(make)};result.set(key,out);}out.c.getContext('2d').drawImage(t.c,left-x*TILE,top-y*TILE);
+   const key=x+','+y;if(!commands.has(key))commands.set(key,{x,y,tiles:[]});commands.get(key).tiles.push(t);
   }
  }
  // The legacy large-image sampler round-trips unpremultiplied RGBA through
  // ImageData. Preserve that rounding as well as geometry and alpha.
- for(const [key,t]of result){if(normalizeAlpha){const ctx=t.c.getContext('2d');ctx.putImageData(ctx.getImageData(0,0,TILE,TILE),0,0);}if(!hasInk(t.c))result.delete(key);}return result;
+ const next=new Map();for(const [key,command]of commands){const signature=[dx,dy,normalizeAlpha,...command.tiles],old=cache?.outputs?.get(key);if(old&&old.signature.length===signature.length&&signature.every((v,i)=>v===old.signature[i])){next.set(key,old);if(old.tile)result.set(key,old.tile);continue;}
+ const t={x:command.x,y:command.y,c:canvas(make)},ctx=t.c.getContext('2d');for(const source of command.tiles)ctx.drawImage(source.c,(source.x-t.x)*TILE+dx,(source.y-t.y)*TILE+dy);
+ if(normalizeAlpha)ctx.putImageData(ctx.getImageData(0,0,TILE,TILE),0,0);const tile=hasInk(t.c)?t:null;next.set(key,{signature,tile});if(tile)result.set(key,tile);
+ }if(cache)cache.outputs=next;return result;
 }
-function transform(make,tiles,m){if(!tiles.size)return new Map();
- const b=inkBounds(tiles);if(!b)return new Map();const outBounds=bounds(corners(b).map(p=>point(m,p))),result=new Map();
+function transform(make,tiles,m,cache){if(!tiles.size){if(cache)cache.outputs=new Map();return new Map();}
+ const b=inkBounds(tiles,cache?.bounds);if(!b)return new Map();const outBounds=bounds(corners(b).map(p=>point(m,p))),result=new Map();
  const width=b.right-b.left,height=b.bottom-b.top;
- if(m[0]===1&&m[1]===0&&m[2]===0&&m[3]===1&&Number.isSafeInteger(m[4])&&Number.isSafeInteger(m[5]))return translateTiles(make,tiles,m[4],m[5],width*height>16777216||width>8192||height>8192);
+ if(m[0]===1&&m[1]===0&&m[2]===0&&m[3]===1&&Number.isSafeInteger(m[4])&&Number.isSafeInteger(m[5]))return translateTiles(make,tiles,m[4],m[5],width*height>16777216||width>8192||height>8192,cache);
  if(width*height<=16777216&&width<=8192&&height<=8192){const source=canvas(make,width,height),sc=source.getContext('2d');for(const t of tiles.values())sc.drawImage(t.c,t.x*TILE-b.left,t.y*TILE-b.top);for(let y=Math.floor(outBounds.top/TILE);y<Math.ceil(outBounds.bottom/TILE);y++)for(let x=Math.floor(outBounds.left/TILE);x<Math.ceil(outBounds.right/TILE);x++){const c=canvas(make),ctx=c.getContext('2d');ctx.translate(-x*TILE,-y*TILE);ctx.transform(...m);ctx.drawImage(source,b.left,b.top);if(hasInk(c))result.set(x+','+y,{x,y,c});}return result;}
  // Sample in premultiplied alpha across tile edges; no giant temporary bitmap.
  const inv=inverse(m),pixels=new Map([...tiles].map(([key,t])=>[key,t.c.getContext('2d').getImageData(0,0,TILE,TILE).data]));

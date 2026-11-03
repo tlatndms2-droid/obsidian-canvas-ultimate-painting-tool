@@ -1,0 +1,10 @@
+const {test}=require('node:test'),assert=require('node:assert/strict');
+const {DrawingStore,encode}=require('../src/storage'),{loadAsync}=require('../src/storage-load');
+const id='12345678-1234-1234-1234-123456789abc';
+function make(readFile){return new DrawingStore('fixture',{promises:{readFile}});}
+const data={format:'canvas-drawing',version:1,id,revision:0,sourcePath:'note.canvas',strokes:[]};
+const absent=()=>Object.assign(Error('missing'),{code:'ENOENT'});
+test('async drawing read shares identity and uses existing integrity validation',async()=>{let reads=0;const s=make(async()=>{reads++;await new Promise(r=>setTimeout(r,5));return encode(data)});const [a,b]=await Promise.all([loadAsync(s,id,'note.canvas',true),loadAsync(s,id,'note.canvas',true)]);assert.equal(a,b);assert.equal(reads,1);assert.deepEqual(a.data,data);assert.equal(await loadAsync(s,id,'note.canvas'),a);});
+test('async drawing read retains pending recovery and rejects corrupt data',async()=>{const s=make(async p=>{if(!p.endsWith('.pending'))throw absent();return encode(data)});assert.deepEqual((await loadAsync(s,id,'note.canvas',true)).data,data);const broken=make(async()=>JSON.stringify({payload:JSON.stringify(data),checksum:'bad'}));await assert.rejects(loadAsync(broken,id,'note.canvas',true),/무결성/);assert.equal(broken.records.size,0);});
+test('missing expected records and permission errors do not become blank drawings',async()=>{const s=make(async()=>{throw absent()});await assert.rejects(loadAsync(s,id,'note.canvas',true),/찾을 수/);assert.equal(s.records.size,0);assert.equal((await loadAsync(s,id,'new.canvas')).data.sourcePath,'new.canvas');const denied=make(async()=>{throw Object.assign(Error('denied'),{code:'EACCES'})});await assert.rejects(loadAsync(denied,id,'new.canvas'),/denied/);assert.equal(denied.records.size,0);});
+test('closing during a read cannot populate a stopped store',async()=>{let finish;const s=make(()=>new Promise(r=>finish=r));const work=loadAsync(s,id,'note.canvas',true);s.closed=true;finish(encode(data));await assert.rejects(work,/종료/);assert.equal(s.records.size,0);});

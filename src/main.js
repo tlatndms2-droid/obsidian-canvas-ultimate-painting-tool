@@ -31,9 +31,9 @@ module.exports = class CanvasDrawingPlugin extends Plugin {
     const retained=this.app[Symbol.for('canvas-drawing-unsaved')];if(retained){for(const [id,r]of retained)this.store.records.set(id,{data:r.data,dirty:true,error:r.error,undo:[],redo:[]});delete this.app[Symbol.for('canvas-drawing-unsaved')];}
     this.spaces=new (require('./drawing-spaces').DrawingSpaces)(this);await this.spaces.load();
     for(const event of ['ultimate-canvas-toolkit:space-will-change','ultimate-canvas-toolkit:space-changed'])this.registerEvent(this.app.workspace.on(event,context=>{const s=[...this.sessions.values()].find(s=>s.view===context.view);if(s){if(event.endsWith('will-change'))this.spaces.prepare(s);else this.spaces.sync(s);}}));
-    this.sessions = new Map();this.keyboard=new (require('./drawing-keyboard').DrawingKeyboard)(this);
+    this.reopenCache=new (require('./render-history').RenderHistory)();this.sessions = new Map();this.keyboard=new (require('./drawing-keyboard').DrawingKeyboard)(this);
     this.settings = {size:12, color:'#b6a0e2', opacity:1, density:1, hardness:1, mix:false, paintAmount:.5, colorStretch:.5, eraserSize:32, ...unpackMaterials(await this.loadData() || {})};
-    upgrade(this.settings);upgradeWorkspaces(this.settings);require('./navigation-shortcuts').ensure(this.settings);this.settings.historyLimit=Number.isSafeInteger(this.settings.historyLimit)&&this.settings.historyLimit>0?this.settings.historyLimit:50;this.addSettingTab(new HistorySettings(this.app,this));
+    const detailKeysChanged=!this.settings.brushDetailsKeysVersion||this.settings.workspaces?.some(w=>w.state&&!w.state.brushDetailsKeysVersion);upgrade(this.settings);upgradeWorkspaces(this.settings);if(detailKeysChanged)await this.saveData(this.settings);require('./navigation-shortcuts').ensure(this.settings);this.settings.historyLimit=Number.isSafeInteger(this.settings.historyLimit)&&this.settings.historyLimit>0?this.settings.historyLimit:50;this.addSettingTab(new HistorySettings(this.app,this));
     if(this.settings.pieSize===undefined){this.settings.pieSize=require('./pie-settings').size(this.settings);await this.saveData(this.settings);}
     const installedDefaults=require('./default-brushes').install(this.settings);
     const enabledPressure=require('./pressure-defaults').enable(this.settings);
@@ -51,11 +51,12 @@ module.exports = class CanvasDrawingPlugin extends Plugin {
     this.registerInterval(window.setInterval(() => this.sync(), 500));
     if(!this.settings.brushPieKeysVersion){this.settings.shortcuts.brush='B';this.settings.shortcuts.eraser='E';this.settings.brushPieKeysVersion=1;await this.saveData(this.settings);}
     this.addCommand({id:'toggle-brush-pie',name:'브러시 파이 메뉴 열기 / 닫기',checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready||!s.drawing)return false;if(!checking)s.toggleBrushPie();return true;}});
-    this.settings.shortcuts.pie??='Ctrl+Alt+Q';this.settings.shortcuts.colorPie??='Ctrl+Alt+C';this.settings.shortcuts.eraserPie??='Ctrl+Alt+E';this.settings.shortcuts.brushDetails??='Ctrl+Alt+B';
+    this.settings.shortcuts.pie??='Ctrl+Alt+Q';this.settings.shortcuts.colorPie??='Ctrl+Alt+C';this.settings.shortcuts.eraserPie??='Ctrl+Alt+E';this.settings.shortcuts.brushDetails??='Shift+Q';
     for(const [id,name,action]of [['toggle-eraser-pie','지우개 파이 메뉴 열기 / 닫기',s=>s.toggleEraserPie()],['toggle-brush-details','브러시 상세 파이 메뉴 열기 / 닫기',s=>s.toggleBrushDetails()]])this.addCommand({id,name,checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready||!s.drawing)return false;if(!checking)action(s);return true;}});
     this.addCommand({id:'toggle-color-pie',name:'색상 파이 메뉴 열기 / 닫기',checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready||!s.drawing)return false;if(!checking)s.colorUI.toggle();return true;}});
     this.addCommand({id:'toggle-pie',name:'지정 도구 파이 메뉴 열기 / 닫기',checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready||!s.drawing)return false;if(!checking)s.quickTools.toggle();return true;}});
-    for(const[id,name,run]of [['toggle-layers','레이어 패널 열기 / 닫기',s=>s.toggleLayerPanel()],['clear-drawing','Canvas 드로잉 전체 지우기',s=>s.layerUI.confirmClearAll()]])this.addCommand({id,name,checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready||(id==='toggle-layers'&&!s.drawing))return false;if(!checking)run(s);return true;}});
+    this.addCommand({id:'toggle-layers',name:'레이어 패널 열기 / 닫기',checkCallback:checking=>{const s=this.sessions.get(this.app.workspace.activeLeaf);if(!s?.ready||!s.drawing)return false;if(!checking)s.toggleLayerPanel();return true;}});
+    this.addCommand(require('./clear-drawing-command').clearDrawingCommand(this));
     this.addCommand({id:'toggle-drawing',name:'Drawing 툴바 켜기 / 끄기',checkCallback:checking=>{
       const session = this.sessions.get(this.app.workspace.activeLeaf);
       if (!session) return false;
@@ -63,6 +64,7 @@ module.exports = class CanvasDrawingPlugin extends Plugin {
       return true;
     }});
     await require('../markdown/integrated').start(this);
+    await require('./clear-drawing-command').migrateClearShortcut(this);
     this.app.workspace.onLayoutReady(() => this.sync());
   }
   settleInactive(){for(const s of this.sessions.values())if(!s.isActive())s.settle();}
@@ -102,7 +104,7 @@ module.exports = class CanvasDrawingPlugin extends Plugin {
     this.spaces?.destroy();
     require('../markdown/integrated').stop(this);
     for (const s of this.sessions.values()) s.destroy();
-    this.sessions.clear();this.keyboard?.destroy();clearTimeout(this.saveTimer);const saved=this.store.close();if(!saved){this.app[Symbol.for('canvas-drawing-unsaved')]=new Map([...this.store.records].filter(([,r])=>r.dirty).map(([id,r])=>[id,{data:r.data,error:r.error}]));new Notice('저장하지 못한 그림을 메모리에 보관했습니다. 플러그인을 다시 켜서 저장을 재시도해주세요.');}
+    this.sessions.clear();this.reopenCache.entries.clear();this.reopenCache.bytes=0;this.keyboard?.destroy();clearTimeout(this.saveTimer);const saved=this.store.close();if(!saved){this.app[Symbol.for('canvas-drawing-unsaved')]=new Map([...this.store.records].filter(([,r])=>r.dirty).map(([id,r])=>[id,{data:r.data,error:r.error}]));new Notice('저장하지 못한 그림을 메모리에 보관했습니다. 플러그인을 다시 켜서 저장을 재시도해주세요.');}
   }
 };
 
@@ -132,7 +134,8 @@ class CanvasSession {
     const meta=this.canvas.data?.canvasDrawing||disk?.canvasDrawing;
     if (meta && (meta.version!==1 || !validId(meta.id))) throw Error('지원하지 않는 Canvas 그림 연결입니다. 원본을 보호합니다.');
     let id=meta?.id || randomUUID();
-    let record=this.plugin.store.load(id,this.file.path,!!meta);
+    let record=await require('./storage-load').loadAsync(this.plugin.store,id,this.file.path,!!meta);
+    if(this.disposed){await this.plugin.releaseRecord(record);return;}
     // Duplicating a Canvas must not make the two files share one drawing document.
     if (record.data.sourcePath !== this.file.path && this.plugin.app.vault.getAbstractFileByPath(record.data.sourcePath)) {
       const original=record; id=randomUUID(); record=this.plugin.store.load(id,this.file.path);
@@ -141,7 +144,7 @@ class CanvasSession {
     this.record=record;record.releaseWhenSaved=false;record.history??=new History(record,this.plugin.settings.historyLimit,()=>{for(const s of this.plugin.sessions.values())if(s.record===record)s.historyUI?.update();});
     if(!record.data.layers){upgradeLayers(record.data);this.plugin.store.changed(record);}
     if(record.data.version<8){record.data.version=8;record.data.paper??=paperDefaults();record.data.assets??={};this.plugin.store.changed(record);}
-    seal(record.data);this.historyUI=new HistoryUI(this);this.engine=new LayerRenderer(()=>this.doc.createElement('canvas'));await this.engine.load(record.data);await this.paper.loadImage(record.data.paper?.image);
+    seal(record.data);this.historyUI=new HistoryUI(this);this.engine=new LayerRenderer(()=>this.doc.createElement('canvas'),this.plugin.reopenCache);await this.engine.load(record.data);await this.paper.loadImage(record.data.paper?.image);
     if (!meta || meta.id !== id || record.data.sourcePath !== this.file.path) {
       record.data.sourcePath=this.file.path;
       this.plugin.store.changed(record);
@@ -194,7 +197,7 @@ class CanvasSession {
     this.raster.setAttribute('aria-label','Canvas 그림');
     this.cursor=this.element('div','cdt-cursor',this.host);this.cursor.hidden=true;if(this.mixHint)this.mixHint.hidden=true;this.mixHint=this.element('span','cdt-mix-cursor',this.host,'Mix');this.mixHint.hidden=true;
     this.panel=this.element('aside','cdt-panel',this.host);
-    this.brushUI=new BrushUI(this);this.brushUI.render();
+    this.brushUI=new BrushUI(this);
     this.colorPopup=this.element('div','cdt-color-popup',this.host);this.colorPopup.hidden=true;
     this.colorUI=new ColorUI(this);if(!this.host.classList.contains('mdt-host')){this.tools.append(this.colorButton);this.colorButton.setAttribute('aria-label','색상 파이 메뉴');this.colorButton.title='색상 파이 메뉴 · Ctrl+Alt+C';this.colorButton.oncontextmenu=e=>{e.preventDefault();const {Menu}=require('obsidian'),m=new Menu();m.addItem(i=>i.setTitle('기존 색상 패널').onClick(()=>this.colorUI.togglePanel()));m.addItem(i=>i.setTitle('색상 파이 메뉴 단축키').onClick(()=>require('./tool-shortcuts').shortcutDialog(this,'panel:colorPie','색상 파이 메뉴')));m.showAtMouseEvent(e);};}
     this.refreshControls();
@@ -264,6 +267,7 @@ class CanvasSession {
   keyDown(event,fromScope=false) {
     if(!fromScope&&this.plugin.keyboard?.handled.has(event))return;
     if(this.view.file!==this.file)return;
+    if(this.isActive()&&event.key==='Escape'&&this.layerUI?.penDragCancel){this.layerUI.penDragCancel();event.preventDefault();event.stopImmediatePropagation();return;}
     if(this.isActive()&&require('./pie-input').picker(this,event))return;
     if(this.isActive()&&(this.brushPie?.key(event)||this.detailPie?.key(event)||this.eraserPie?.key(event)))return;
     if(this.isActive()&&this.colorUI?.pie?.key(event))return;
@@ -443,7 +447,7 @@ class CanvasSession {
     for(const [tool,b]of Object.entries(this.editButtons||{})){const active=this.tool===tool||(tool==='rectangle'&&this.tool==='lasso');b.classList.toggle('is-active',active);b.setAttribute('aria-pressed',String(active));if(tool==='rectangle'){setIcon(b,this.tool==='lasso'?'lasso':'scan');b.title='선택 영역 · '+(this.tool==='lasso'?'올가미':'사각형')+' (W: 전환)';}}if(this.panel)this.panel.hidden=!this.drawing||!['brush','eraser'].includes(this.tool);
     this.host.classList.toggle('cdt-editing',!['brush','eraser'].includes(this.tool));
     this.brushButton.classList.toggle('is-active',this.tool==='brush');this.eraserButton.classList.toggle('is-active',this.tool==='eraser');
-    this.brushButton.setAttribute('aria-pressed',String(this.tool==='brush'));this.eraserButton.setAttribute('aria-pressed',String(this.tool==='eraser'));this.colorButton.style.color=this.toolColor();if(this.colorInput)this.colorInput.value=this.toolColor();this.quickTools?.render();this.workspaceUI?.applyLayout();this.brushUI?.scrollSelected();
+    this.brushButton.setAttribute('aria-pressed',String(this.tool==='brush'));this.eraserButton.setAttribute('aria-pressed',String(this.tool==='eraser'));this.colorButton.style.color=this.toolColor();if(this.colorInput)this.colorInput.value=this.toolColor();this.quickTools?.render();this.workspaceUI?.applyLayout();this.brushUI?.ensureRendered();this.brushUI?.scrollSelected();
   }
   toolColor(){return this.tool==='shape'?this.plugin.settings.shapeStyle.color:this.plugin.settings.color;}
   colorSettings(){const q=this.plugin.settings;if(this.tool!=='shape')return q;return q.shapeColors??={mainColor:q.shapeStyle.color,secondaryColor:q.secondaryColor,activeColor:'main'};}

@@ -71,6 +71,7 @@ class MarkdownSession extends CanvasSession {
  legacyAnchorPosition(from,to,quote){if(from<0||from>this.cm.state.doc.length)return null;const c=this.cm.coordsAtPos(from,1),r=this.cm.contentDOM.getBoundingClientRect();return c?{from,to,quote,x:c.left-r.left,y:c.top-r.top,orphan:false}:null;}
  pointerDown(e){if(!this.ready||e.target.closest('.mdt-panel-close'))return;super.pointerDown(e);if(this.drawing&&!e.target.closest('input,select,textarea'))this.host.focus({preventScroll:true});}
  keyDown(e,fromScope=false){if(!this.isActive())return;
+  if(e.key==='Escape'&&this.layerUI?.penDragCancel){this.layerUI.penDragCancel();e.preventDefault();e.stopImmediatePropagation();return;}
   if(require('../src/pie-input').picker(this,e))return;
   if(this.brushPie?.key(e)||this.detailPie?.key(e)||this.eraserPie?.key(e))return;
   if(this.colorUI?.pie?.key(e))return;
