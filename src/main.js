@@ -322,11 +322,16 @@ class CanvasSession {
   toggleTransparentColor(){const q=this.plugin.settings;q.transparentColor=!q.transparentColor;if(this.figures.pending){this.figures.pending.transparentColor=q.transparentColor;this.figures.preview();}this.colorUI.sync();if(this.lastPointer)this.updateCursor(this.lastPointer);this.plugin.saveData(q);}
   selectColorSlot(slot){const q=this.plugin.settings;q.transparentColor=false;const colors=this.colorSettings();colors.activeColor=slot;const color=slot==='main'?colors.mainColor:colors.secondaryColor;if(this.tool==='shape'){q.shapeStyle.color=color;if(this.figures.pending){this.figures.pending.transparentColor=false;this.figures.pending.color=color;this.figures.preview();}}else q.color=color;this.colorUI.sync();this.refreshControls();this.plugin.saveData(q);}
   undoDrawing(redo=false){if(this.figures?.pending){if(!redo)this.figures.undoPoint();return;}this.selection.end();this.finishStroke();const r=this.record;if(r.history.travel(redo)){this.engine.load(r.data).then(()=>this.scheduleRender());this.plugin.refreshLayers(r);this.plugin.store.changed(r);this.plugin.repaint(r);this.plugin.queueSave();}}
-  point(event) {
-    const c=this.canvas.canvasEl,rect=c.getBoundingClientRect(),scale=rect.width/c.offsetWidth;
+  pointGeometry() {
+    const canvas=this.canvas.canvasEl;
+    const rect=canvas.getBoundingClientRect();
+    return {rect,scale:rect.width/canvas.offsetWidth};
+  }
+  point(event,geometry=this.pointGeometry()) {
+    const {rect,scale}=geometry;
     return [(event.clientX-rect.left)/scale,(event.clientY-rect.top)/scale];
   }
-  brushPoint(event,layer){const p=this.point(event);return [p[0]-(layer?.offset?.x||0),p[1]-(layer?.offset?.y||0)];}
+  brushPoint(event,layer,geometry){const p=this.point(event,geometry);return [p[0]-(layer?.offset?.x||0),p[1]-(layer?.offset?.y||0)];}
   pointerDown(event) {
     if(this.isActive()&&this.drawing)this.acceptCursorInput(event);
     if(!this.ready&&this.rootDrawingRecord&&this.drawing&&this.isActive()&&this.host.contains(event.target)&&!event.target.closest('.cdt-toolbar,.cdt-panel,.cdt-layers,.canvas-controls')){event.preventDefault();event.stopImmediatePropagation();return;}
@@ -404,6 +409,7 @@ class CanvasSession {
     this.lastPointer=event;if(['rectangle','lasso'].includes(this.tool))require('./layer-pick').hover(this,event);this.anchors?.move(event);if(require('./layer-pick').move(this,event))return;
     if(this.figures.move(event))return;
     if(this.selection.safe(()=>this.selection.move(event)))return;
+    const geometry=this.active && !this.active.snap && !this.active.straight ? this.pointGeometry() : undefined;
     this.updateCursor(event);this.previewLine(event);
     if(this.active?.snap){this.snapBrush(event);return;}
     if(this.active?.straight)return;
@@ -422,7 +428,8 @@ class CanvasSession {
     if(!this.active || event.pointerId!==this.active.id)return;
     event.preventDefault();event.stopImmediatePropagation();
     const samples=event.getCoalescedEvents?.() || [event];
-    for(const sample of samples.length?samples:[event]){const pt=inputPoint(...this.brushPoint(sample,this.record.data.layers.find(l=>l.id===this.active.stroke.layerId)),sample,this.active.preset,this.active.settings);const point=this.active.stabilizer.add(pt,sample.timeStamp);this.active.stroke.points.push(point);if(this.active.stroke.mixSamples){const l=this.record.data.layers.find(l=>l.id===this.active.stroke.layerId);const x=point[0]+(l.offset?.x||0),y=point[1]+(l.offset?.y||0),tx=Math.floor(x/256),ty=Math.floor(y/256);this.active.stroke.mixSamples.push(Array.from(this.active.referenceTiles.get(tx+','+ty)?.c.getContext('2d').getImageData(Math.floor(x-tx*256),Math.floor(y-ty*256),1,1).data||[0,0,0,0]));}}
+    const layer=this.record.data.layers.find(l=>l.id===this.active.stroke.layerId);
+    for(const sample of samples.length?samples:[event]){const pt=inputPoint(...this.brushPoint(sample,layer,geometry),sample,this.active.preset,this.active.settings);const point=this.active.stabilizer.add(pt,sample.timeStamp);this.active.stroke.points.push(point);if(this.active.stroke.mixSamples){const l=this.record.data.layers.find(l=>l.id===this.active.stroke.layerId);const x=point[0]+(l.offset?.x||0),y=point[1]+(l.offset?.y||0),tx=Math.floor(x/256),ty=Math.floor(y/256);this.active.stroke.mixSamples.push(Array.from(this.active.referenceTiles.get(tx+','+ty)?.c.getContext('2d').getImageData(Math.floor(x-tx*256),Math.floor(y-ty*256),1,1).data||[0,0,0,0]));}}
     this.plugin.store.changed(this.record);this.plugin.repaint(this.record);
   }
   snapBrush(event){const a=this.active;if(!a?.snap||a.id!==event.pointerId)return;event.preventDefault();event.stopImmediatePropagation();const l=this.record.data.layers.find(l=>l.id===a.stroke.layerId),end=require('./brush-snap').point(a.stroke.points[0],inputPoint(...this.brushPoint(event,l),event,a.preset,a.settings),a.snap),next={...a.stroke,points:[a.stroke.points[0],end]};if(next.mixSamples){next.mixSamples=next.points.map(p=>{const x=p[0]+(l.offset?.x||0),y=p[1]+(l.offset?.y||0),tx=Math.floor(x/256),ty=Math.floor(y/256);return Array.from(a.referenceTiles.get(tx+','+ty)?.c.getContext('2d').getImageData(Math.floor(x-tx*256),Math.floor(y-ty*256),1,1).data||[0,0,0,0]);});}const index=this.record.data.strokes.indexOf(a.stroke);this.record.data.strokes[index]=next;a.stroke=next;this.plugin.store.changed(this.record);this.plugin.repaint(this.record);}

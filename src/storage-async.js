@@ -1,5 +1,5 @@
 'use strict';
-const {DrawingStore}=require('./storage');
+const {DrawingStore,encode}=require('./storage');
 const {snapshot}=require('./history-state');
 const fs=require('node:fs');
 const workerCode='__CDT_STORAGE_WORKER__';
@@ -19,9 +19,12 @@ class AsyncDrawingStore extends DrawingStore{
    await this.atomicAsync(target,result.raw,previousRaw,generation);if(this.closed||generation!==this.generation)return false;this.writeCount++;record.error=null;if(record.data.revision===data.revision)record.dirty=false;return true;
   }catch(e){if(!this.closed&&generation===this.generation)record.error=e.message;return false;}
  }
- async atomicAsync(target,raw,expected,generation=this.generation){const temporary=target+'.async-'+(++this.nextJob)+'.pending';let fd;try{fd=await fs.promises.open(temporary,'w');await fd.writeFile(raw,'utf8');await fd.sync();await fd.close();fd=null;if(!this.closed&&generation===this.generation){if(expected!==undefined){let current=null;try{current=fs.readFileSync(target,'utf8')}catch(e){if(e.code!=='ENOENT')throw e;}if(current!==expected)throw Error('저장 직전 외부 변경을 발견했습니다. 원본을 보호합니다.');}fs.renameSync(temporary,target);}}finally{if(fd)await fd.close();try{await fs.promises.unlink(temporary)}catch(e){if(e.code!=='ENOENT')throw e;}}}
+ async atomicAsync(target,raw,expected,generation=this.generation){const temporary=target+'.async-'+(++this.nextJob)+'.pending';let fd;try{fd=await fs.promises.open(temporary,'w');await fd.writeFile(raw,'utf8');await fd.sync();await fd.close();fd=null;if(!this.closed&&generation===this.generation){this.committer??=require('./storage-commit').createCommitter(generation);await this.committer.commit(temporary,target,expected,generation);}}finally{if(fd)await fd.close();try{await fs.promises.unlink(temporary)}catch(e){if(e.code!=='ENOENT')throw e;}}}
  async flushAll(){return (await Promise.all([...this.records.values()].map(r=>this.flush(r)))).every(Boolean);}
- checkpoint(){this.generation++;let ok=true;for(const r of this.records.values())ok=super.flush(r)&&ok;return ok;}
- close(){this.closed=true;this.generation++;this.worker.terminate();URL.revokeObjectURL(this.workerUrl);for(const j of this.jobs.values())j.reject(Error('저장 종료 처리'));this.jobs.clear();let ok=true;for(const r of this.records.values())ok=super.flush(r)&&ok;return ok;}
+ finalFlush(record){if(record.dirty){try{if(fs.readFileSync(this.file(record.data.id),'utf8')===encode(record.data)){record.dirty=false;record.error=null;return true;}}catch{}}return super.flush(record);}
+ checkpoint(){this.committer?.invalidate();this.generation++;let ok=true;for(const r of this.records.values())ok=this.finalFlush(r)&&ok;return ok;}
+ close(){this.committer?.close();this.closed=true;this.generation++;this.worker.terminate();URL.revokeObjectURL(this.workerUrl);for(const j of this.jobs.values())j.reject(Error('저장 종료 처리'));this.jobs.clear();let ok=true;for(const r of this.records.values())ok=this.finalFlush(r)&&ok;return ok;}
 }
 module.exports={AsyncDrawingStore};
+
+
