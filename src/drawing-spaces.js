@@ -13,7 +13,26 @@ class DrawingSpaces{
  context(s){this.ensureBridge();const uct=this.plugin.app.plugins.getPlugin('ultimate-canvas-toolkit'),explicit=uct?.getCanvasSpace?.(s.view);if(explicit)return explicit;const session=uct?.session?.(s.view),portalId=session?.v?.file?.path===s.file.path?session.current??null:null;return{view:s.view,filePath:s.file.path,portalId,key:portalId?s.file.path+'#uct-portal:'+portalId:s.file.path};}
  save(){const raw=JSON.stringify(this.data,null,2),a=this.plugin.app.vault.adapter;const work=this.queue.catch(()=>{}).then(()=>a.write(this.path,raw));this.queue=work;return work;}
  rename(oldPath,newPath){if(!oldPath||oldPath===newPath)return;const move=value=>value===oldPath||value.startsWith(oldPath+'/')||value.startsWith(oldPath+'#uct-portal:')?newPath+value.slice(oldPath.length):value;let changed=false;for(const key of Object.keys(this.data.canvases)){const next=move(key);if(next!==key){if(this.data.canvases[next])throw Error('이름 변경 대상에 기존 공간별 그림 연결이 있습니다.');this.data.canvases[next]=this.data.canvases[key];delete this.data.canvases[key];changed=true;}}for(const r of this.plugin.store.records.values()){const next=move(r.data.sourcePath);if(next!==r.data.sourcePath){r.data.sourcePath=next;this.plugin.store.changed(r);}}for(const s of this.plugin.sessions.values()){if(s.drawingSpaceKey)s.drawingSpaceKey=move(s.drawingSpaceKey);if(s.pendingSpaceKey)s.pendingSpaceKey=move(s.pendingSpaceKey);}if(changed)return this.save();}
- async attach(s,root){s.rootDrawingRecord=root;s.drawingSpaceKey=s.file.path;const old=this.data.canvases[s.file.path];if(old&&old.root!==root.data.id)throw Error('Canvas와 공간별 그림 연결이 다릅니다. 원본을 보호합니다.');if(!old){this.data.canvases[s.file.path]={root:root.data.id,portals:{}};await this.save();}await this.sync(s);}
+ async registerRoot(filePath, rootId, fresh = false) {
+  const previous = this.data.canvases[filePath];
+  if (previous?.root === rootId) return;
+  if (previous && !fresh) throw Error('Canvas와 공간별 그림 연결이 다릅니다. 원본을 보호합니다.');
+  if (previous) {
+   // Retain both the old portal links and their drawing documents.
+   const backup = this.path + '.replaced-' + randomUUID() + '.bak';
+   await this.plugin.app.vault.adapter.write(backup, JSON.stringify({
+    version: 1, canvases: { [filePath]: previous }
+   }, null, 2));
+  }
+  this.data.canvases[filePath] = {root: rootId, portals: {}};
+  try { await this.save(); }
+  catch (error) {
+   if (previous) this.data.canvases[filePath] = previous;
+   else delete this.data.canvases[filePath];
+   throw error;
+  }
+ }
+ async attach(s,root){await this.registerRoot(s.file.path,root.data.id);s.rootDrawingRecord=root;s.drawingSpaceKey=s.file.path;await this.sync(s);}
  prepare(s){if(!s.rootDrawingRecord||s.disposed||this.context(s).key===s.drawingSpaceKey)return;s.figures?.confirm();s.selection?.confirm(false);s.selection?.end();s.finishStroke();s.colorUI?.close();s.ready=false;s.raster.hidden=true;this.plugin.queueSave();}
  sync(s){if(!s.rootDrawingRecord||s.disposed)return Promise.resolve();const context=this.context(s);if(context.portalId&&!s.canvas.data.canvasDrawing)s.canvas.data.canvasDrawing={version:1,id:s.rootDrawingRecord.data.id};if(s.pendingSpaceKey===context.key&&s.spaceWork)return s.spaceWork;if(context.key===s.drawingSpaceKey&&s.ready)return s.spaceWork||Promise.resolve();this.prepare(s);s.pendingSpaceKey=context.key;const generation=s.spaceGeneration=(s.spaceGeneration||0)+1;s.spaceWork=(s.spaceWork||Promise.resolve()).catch(()=>{}).then(()=>this.switch(s,context,generation)).catch(error=>{if(!s.disposed&&generation===s.spaceGeneration)s.protect(error)});return s.spaceWork;}
  async switch(s,context,generation){if(s.disposed||generation!==s.spaceGeneration)return;const row=this.data.canvases[s.file.path];let record=s.rootDrawingRecord;

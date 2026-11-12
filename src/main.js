@@ -151,6 +151,8 @@ class CanvasSession {
       if (!await this.plugin.store.flush(record)) throw Error(record.error);
     }
     if (this.disposed) return;
+    await this.plugin.spaces.registerRoot(this.file.path,id,!meta);
+    if (this.disposed) return;
     const session=this;
     this.wrappedGetData=function(...args) {
       const result=session.originalGetData.apply(this,args);

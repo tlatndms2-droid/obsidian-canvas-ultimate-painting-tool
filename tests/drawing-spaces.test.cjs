@@ -10,3 +10,27 @@ test('latest rapid transition wins and root metadata stays the canonical root ID
 test('repeated refresh during an in-flight transition does not supersede its own work',async t=>{const f=await fixture(t);f.ctx.portalId='one';f.ctx.key='A.canvas#uct-portal:one';const first=f.spaces.sync(f.s),generation=f.s.spaceGeneration;f.spaces.sync(f.s);assert.equal(f.s.spaceGeneration,generation);await first;assert.equal(f.s.drawingSpaceKey,f.ctx.key);});
 test('Canvas rename keeps portal IDs and loaded drawing ownership',async t=>{const f=await fixture(t);f.ctx.portalId='one';f.ctx.key='A.canvas#uct-portal:one';await f.spaces.sync(f.s);const id=f.s.record.data.id;f.s.file.path='renamed.canvas';await f.spaces.rename('A.canvas','renamed.canvas');assert.equal(f.spaces.data.canvases['renamed.canvas'].portals.one,id);assert.equal(f.spaces.data.canvases['A.canvas'],undefined);assert.equal(f.s.record.data.sourcePath,'renamed.canvas#uct-portal:one');assert.equal(f.s.drawingSpaceKey,'renamed.canvas#uct-portal:one');});
 test('existing UCT show/session API switches spaces without new UCT events and restores its hook',async t=>{const f=await fixture(t),old=function(){return 'shown'},session={v:f.s.view,current:null},portal={show:old},uct={portal,session:()=>session};f.plugin.app.plugins.getPlugin=()=>uct;f.spaces.ensureBridge();session.current='legacy';assert.equal(portal.show(session),'shown');await f.s.spaceWork;assert.equal(f.s.drawingSpaceKey,'A.canvas#uct-portal:legacy');assert.equal(f.s.ready,true);f.spaces.destroy();assert.equal(portal.show,old);});
+
+test('fresh Canvas reusing a path archives old root and portals before replacing the link',async t=>{
+ const f=await fixture(t),old=f.spaces.data.canvases['A.canvas'];
+ old.portals.saved=randomUUID();
+ const next=randomUUID();
+ await f.spaces.registerRoot('A.canvas',next,true);
+ assert.equal(f.spaces.data.canvases['A.canvas'].root,next);
+ assert.equal(Object.keys(f.spaces.data.canvases['A.canvas'].portals).length,0);
+ const backup=[...f.files].find(([name])=>name.includes('.replaced-'));
+ assert.ok(backup);
+ assert.deepEqual(JSON.parse(backup[1]).canvases['A.canvas'],JSON.parse(JSON.stringify(old)));
+ assert.ok(fs.existsSync(f.plugin.store.file(old.root)));
+});
+test('existing Canvas mismatch remains protected and cannot rewrite its space links',async t=>{
+ const f=await fixture(t),old=f.spaces.data.canvases['A.canvas'];
+ await assert.rejects(f.spaces.registerRoot('A.canvas',randomUUID()),/연결이 다릅니다/);
+ assert.equal(f.spaces.data.canvases['A.canvas'],old);
+});
+test('failed backup prevents replacing old links',async t=>{
+ const f=await fixture(t),old=f.spaces.data.canvases['A.canvas'];
+ f.plugin.app.vault.adapter.write=async()=>{throw Error('disk unavailable')};
+ await assert.rejects(f.spaces.registerRoot('A.canvas',randomUUID(),true),/disk unavailable/);
+ assert.equal(f.spaces.data.canvases['A.canvas'],old);
+});
